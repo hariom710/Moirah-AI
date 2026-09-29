@@ -25,6 +25,7 @@ export const IPC_CHANNELS = {
   AUDIO_TRANSCRIBE: 'audio:transcribe',
   AUDIO_TRANSCRIPT: 'audio:transcript',
   AUDIO_STATUS: 'audio:status',
+  TRANSCRIPT_CLEAR: 'transcript:clear',
 
   // Settings
   SETTINGS_GET: 'settings:get',

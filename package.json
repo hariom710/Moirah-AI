@@ -22,7 +22,7 @@
     "preview": "electron-vite preview",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --exclude '.claude/**' --passWithNoTests",
+    "test": "vitest run",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",

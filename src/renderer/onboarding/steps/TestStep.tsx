@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ArrowRight, ArrowLeft, Play, Loader2, Check, AlertTriangle } from 'lucide-react'
 
 interface Props {
@@ -6,23 +6,50 @@ interface Props {
   onBack: () => void
 }
 
+const EXPECTED_PHRASE = 'Specter is ready to help.'
+
+function newRequestId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID()
+    }
+  } catch {
+    // Fall through to the timestamp fallback below.
+  }
+  return `req-${Date.now()}-${Math.floor(Math.random() * 1e9)}`
+}
+
 export default function TestStep({ onNext, onBack }: Props) {
   const [status, setStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle')
   const [output, setOutput] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [phraseMismatch, setPhraseMismatch] = useState(false)
+  const requestIdRef = useRef('')
+  const outputRef = useRef('')
 
   useEffect(() => {
     const api = window.specterAPI
     if (!api) return
 
-    const unsubChunk = api.onStreamChunk((chunk) => {
-      setOutput((prev) => prev + chunk)
+    const unsubChunk = api.onStreamChunk((data) => {
+      if (data.requestId !== requestIdRef.current) return
+      outputRef.current += data.chunk
+      setOutput((prev) => prev + data.chunk)
     })
-    const unsubDone = api.onStreamDone(() => {
-      setStatus((prev) => (prev === 'running' ? 'done' : prev))
+    const unsubDone = api.onStreamDone((data) => {
+      if (data.requestId !== requestIdRef.current) return
+      // The test passes on any completed stream, but flag it when the model
+      // did not follow the exact-reply instruction — that hints at trouble
+      // with instruction-following on the selected model.
+      setPhraseMismatch(!outputRef.current.includes(EXPECTED_PHRASE))
+      setStatus((prev) => {
+        if (prev !== 'running') return prev
+        return 'done'
+      })
     })
-    const unsubError = api.onStreamError((err) => {
-      setError(err)
+    const unsubError = api.onStreamError((data) => {
+      if (data.requestId !== requestIdRef.current) return
+      setError(data.error)
       setStatus((prev) => (prev === 'running' ? 'error' : prev))
     })
 
@@ -36,14 +63,19 @@ export default function TestStep({ onNext, onBack }: Props) {
 
   function runTest() {
     window.specterAPI?.cancelAI()
+    const requestId = newRequestId()
+    requestIdRef.current = requestId
+    outputRef.current = ''
     setStatus('running')
     setOutput('')
     setError(null)
+    setPhraseMismatch(false)
     window.specterAPI?.queryAI(
       'This is a setup test. Reply with exactly: Specter is ready to help.',
       false,
       false,
-      []
+      [],
+      { requestId }
     )
   }
 
@@ -75,6 +107,12 @@ export default function TestStep({ onNext, onBack }: Props) {
       {status === 'done' && (
         <div className="flex items-center gap-2 text-xs text-green-400 mt-3">
           <Check className="w-3.5 h-3.5" /> Your setup works.
+        </div>
+      )}
+      {status === 'done' && phraseMismatch && (
+        <div className="flex items-start gap-2 text-xs text-amber-400 mt-2">
+          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <span>The model replied but did not echo the exact test phrase — it may struggle to follow strict formatting instructions.</span>
         </div>
       )}
 

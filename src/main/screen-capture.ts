@@ -25,7 +25,11 @@ interface WindowBounds {
   title: string
 }
 
-function ocrInWorker(imageBuffer: Buffer, language = 'eng'): Promise<string> {
+/**
+ * Run OCR on an image buffer in a worker thread (12s timeout).
+ * Exported so the AI query path can OCR user-attached screenshots too.
+ */
+export function ocrInWorker(imageBuffer: Buffer, language = 'eng'): Promise<string> {
   return new Promise((resolve, reject) => {
     const workerPath = join(__dirname, 'ocr-worker.js')
     const worker = new Worker(workerPath, {

@@ -6,8 +6,8 @@ import { streamCompletion, cancelStream, fetchAvailableModels, estimateCost, get
 import { streamOpenAICompletion, cancelOpenAIStream } from '../services/openai-api'
 import { streamCodexCompletion, cancelCodexStream } from '../services/codex'
 import { buildSystemPrompt, buildUserMessage, estimateTokens } from '../services/context-builder'
-import { captureScreenText, captureScreenOnly } from './screen-capture'
-import { transcribeAudio, getTranscript, checkWhisperConfig } from './audio-capture'
+import { captureScreenText, captureScreenOnly, ocrInWorker } from './screen-capture'
+import { transcribeAudio, getTranscript, checkWhisperConfig, clearTranscript } from './audio-capture'
 import { createDashboardWindow } from './dashboard-window'
 import { setOverlayOpacity } from './overlay-window'
 import { reRegisterHotkeys } from './hotkey-manager'
@@ -17,7 +17,12 @@ import type { Playbook, Conversation } from '../shared/types'
 // --- Auto-capture timer ---
 let autoCaptureTimer: ReturnType<typeof setInterval> | null = null
 let lastAutoScreenText = ''
+let lastAutoScreenTextAt = 0
+let lastSentAutoScreenText = ''
 let autoCaptureOverlay: BrowserWindow | null = null
+
+// Auto-captured text is only a fallback for queries when fresh (< 2 min old).
+const AUTO_CAPTURE_FRESH_MS = 120_000
 
 function stopAutoCapture(): void {
   if (autoCaptureTimer) {
@@ -25,6 +30,8 @@ function stopAutoCapture(): void {
     autoCaptureTimer = null
   }
   lastAutoScreenText = ''
+  lastAutoScreenTextAt = 0
+  lastSentAutoScreenText = ''
 }
 
 function startAutoCapture(intervalSec: number): void {
@@ -40,9 +47,15 @@ function startAutoCapture(intervalSec: number): void {
     }
     try {
       const capture = await captureScreenText()
-      // Only send if text changed meaningfully (avoid spamming identical context)
-      if (capture.text && capture.text !== lastAutoScreenText) {
+      // Track freshness on every successful capture (not just changed text),
+      // so a static screen still counts as fresh fallback context.
+      if (capture.text) {
         lastAutoScreenText = capture.text
+        lastAutoScreenTextAt = Date.now()
+      }
+      // Only send if text changed meaningfully (avoid spamming identical context)
+      if (capture.text && capture.text !== lastSentAutoScreenText) {
+        lastSentAutoScreenText = capture.text
         if (!autoCaptureOverlay.isDestroyed()) {
           autoCaptureOverlay.webContents.send(IPC_CHANNELS.AUTO_CAPTURE_UPDATE, {
             text: capture.text,
@@ -177,33 +190,70 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
   // Store overlay reference for auto-capture
   autoCaptureOverlay = overlayWindow
   // AI Query — streaming with cost tracking
-  ipcMain.on(IPC_CHANNELS.AI_QUERY, async (event, args: { query: string; includeScreen: boolean; includeAudio: boolean; messageHistory?: Array<{ role: string; content: string }> }) => {
+  ipcMain.on(IPC_CHANNELS.AI_QUERY, async (event, args: { query: string; includeScreen: boolean; includeAudio: boolean; messageHistory?: Array<{ role: string; content: string }>; requestId?: string; screenshot?: string }) => {
+    const requestId = typeof args?.requestId === 'string' ? args.requestId.slice(0, 128) : ''
+
+    const sendChunk = (chunk: string) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send(IPC_CHANNELS.AI_STREAM_CHUNK, { requestId, chunk })
+      }
+    }
+    interface StreamDonePayload {
+      promptTokens: number
+      completionTokens: number
+      totalTokens: number
+      totalCost: number
+      model: string
+    }
+    const sendDone = (data: StreamDonePayload) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send(IPC_CHANNELS.AI_STREAM_DONE, { ...data, requestId })
+      }
+    }
+    const sendError = (error: string) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send(IPC_CHANNELS.AI_STREAM_ERROR, { requestId, error })
+      }
+    }
+
     // Rate limit
     if (!checkRateLimit(IPC_CHANNELS.AI_QUERY)) {
-      event.sender.send(IPC_CHANNELS.AI_STREAM_ERROR, 'Too many requests. Please wait a moment.')
+      sendError('Too many requests. Please wait a moment.')
       return
     }
 
     // Validate inputs
     if (!isValidQuery(args?.query)) {
-      event.sender.send(IPC_CHANNELS.AI_STREAM_ERROR, 'Invalid query.')
+      sendError('Invalid query.')
       return
     }
 
     if (args.messageHistory && !isValidMessageHistory(args.messageHistory)) {
-      event.sender.send(IPC_CHANNELS.AI_STREAM_ERROR, 'Invalid message history.')
+      sendError('Invalid message history.')
       return
+    }
+
+    // Validate an attached screenshot (base64 image from the overlay preview).
+    // Cap at ~8MB of base64 so a malicious renderer cannot blow up memory.
+    const MAX_ATTACHED_SCREENSHOT_CHARS = 8_000_000
+    let attachedScreenshot: string | undefined
+    if (typeof args.screenshot === 'string' && args.screenshot.length > 0) {
+      if (args.screenshot.length > MAX_ATTACHED_SCREENSHOT_CHARS || !/^[A-Za-z0-9+/=\s]+$/.test(args.screenshot)) {
+        sendError('Attached screenshot is invalid.')
+        return
+      }
+      attachedScreenshot = args.screenshot.replace(/\s+/g, '')
     }
 
     const aiProvider = getSetting<'openrouter' | 'openai' | 'codex'>('aiProvider') || DEFAULT_SETTINGS.aiProvider
     const openrouterApiKey = getSetting<string>('openrouterApiKey')
     const openaiApiKey = getSetting<string>('openaiApiKey')
     if (aiProvider === 'openrouter' && !openrouterApiKey) {
-      event.sender.send(IPC_CHANNELS.AI_STREAM_ERROR, 'No API key configured. Open Settings to add your OpenRouter API key.')
+      sendError('No API key configured. Open Settings to add your OpenRouter API key.')
       return
     }
     if (aiProvider === 'openai' && !openaiApiKey) {
-      event.sender.send(IPC_CHANNELS.AI_STREAM_ERROR, 'No OpenAI API key configured. Open Settings to add your OpenAI API key.')
+      sendError('No OpenAI API key configured. Open Settings to add your OpenAI API key.')
       return
     }
 
@@ -218,22 +268,43 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
     let screenshot: string | undefined
     let transcript = ''
 
-    // Capture screen if requested — surface failures so the overlay can show them
-    if (args.includeScreen) {
+    // An explicitly attached screenshot is used as-is — never silently recaptured.
+    // OCR it best-effort so text-only providers still get the content.
+    if (attachedScreenshot) {
+      screenshot = attachedScreenshot
+      try {
+        screenText = await ocrInWorker(Buffer.from(attachedScreenshot, 'base64'))
+      } catch (err: unknown) {
+        console.warn('[Specter] OCR of attached screenshot failed:', err instanceof Error ? err.message : err)
+      }
+    } else if (args.includeScreen) {
+      // Capture screen if requested — surface failures so the overlay can show them
       try {
         const smartCrop = getSetting<boolean>('smartCrop') || false
         const capture = await captureScreenText(smartCrop)
         screenText = capture.text
         screenshot = capture.screenshot
         if (!screenText && !screenshot) {
-          if (!event.sender.isDestroyed()) {
+          // Fresh capture came back empty — fall back to recent auto-capture text.
+          if (lastAutoScreenText && Date.now() - lastAutoScreenTextAt < AUTO_CAPTURE_FRESH_MS) {
+            screenText = lastAutoScreenText
+            if (!event.sender.isDestroyed()) {
+              event.sender.send(IPC_CHANNELS.SCREEN_CAPTURE_ERROR, 'Live capture was empty — using the most recent auto-captured screen text instead.')
+            }
+          } else if (!event.sender.isDestroyed()) {
             event.sender.send(IPC_CHANNELS.SCREEN_CAPTURE_ERROR, 'Screen capture returned no content.')
           }
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Screen capture failed'
         console.warn('[Specter] Screen capture failed:', message)
-        if (!event.sender.isDestroyed()) {
+        // Fall back to recent auto-capture text before giving up on screen context.
+        if (lastAutoScreenText && Date.now() - lastAutoScreenTextAt < AUTO_CAPTURE_FRESH_MS) {
+          screenText = lastAutoScreenText
+          if (!event.sender.isDestroyed()) {
+            event.sender.send(IPC_CHANNELS.SCREEN_CAPTURE_ERROR, `Live capture failed (${message}) — using the most recent auto-captured screen text instead.`)
+          }
+        } else if (!event.sender.isDestroyed()) {
           event.sender.send(IPC_CHANNELS.SCREEN_CAPTURE_ERROR, message)
         }
       }
@@ -262,11 +333,19 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
     const resumeText = (getSetting<string>('resumeText') || '').slice(0, 20000)
     const hasInterviewProfile = interviewMode && !!(interviewCompany || interviewRole || jobDescription || resumeText)
 
+    // Only OpenRouter (vision-capable models) and direct OpenAI receive image bytes.
+    // Codex is text-only: the prompt builder then tells the model to rely on OCR text.
+    const imageAttached = !!screenshot && (
+      aiProvider === 'openai' ||
+      (aiProvider === 'openrouter' && modelSupportsVision(model))
+    )
+
     const userMessage = buildUserMessage({
       screenText,
       transcript,
       userQuery: args.query,
       screenshot,
+      imageAttached,
       interviewCompany: hasInterviewProfile ? interviewCompany : undefined,
       interviewRole: hasInterviewProfile ? interviewRole : undefined,
       jobDescription: hasInterviewProfile ? jobDescription : undefined,
@@ -304,7 +383,7 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
 
     // Send the screenshot as a vision image when the model can use it.
     // OCR text is still included as extra context for text-only models.
-    if (screenshot && aiProvider === 'openrouter' && modelSupportsVision(model)) {
+    if (imageAttached && screenshot) {
       messages.push({
         role: 'user',
         content: [
@@ -323,38 +402,32 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
     const streamCallbacks = {
       onChunk: (content: string) => {
         completionContent += content
-        if (!event.sender.isDestroyed()) {
-          event.sender.send(IPC_CHANNELS.AI_STREAM_CHUNK, content)
-        }
+        sendChunk(content)
       },
       onDone: () => {
-        if (!event.sender.isDestroyed()) {
-          const completionTokens = estimateTokens(completionContent)
-          const totalTokens = promptTokens + completionTokens
-          const modelLabel = aiProvider === 'codex' ? `codex/${model}` : aiProvider === 'openai' ? `openai/${model}` : model
-          const modelInfo = aiProvider === 'openrouter'
-            ? DEFAULT_MODELS.find(m => m.id === model) || getCachedModels().find(m => m.id === model)
-            : aiProvider === 'openai'
-              ? { pricing: OPENAI_MODEL_PRICING[model] }
-              : undefined
-          const promptPrice = modelInfo?.pricing?.prompt || '0'
-          const completionPrice = modelInfo?.pricing?.completion || '0'
-          const totalCost = aiProvider === 'codex'
-            ? 0
-            : estimateCost(promptTokens, completionTokens, promptPrice, completionPrice)
-          event.sender.send(IPC_CHANNELS.AI_STREAM_DONE, {
-            promptTokens,
-            completionTokens,
-            totalTokens,
-            totalCost,
-            model: modelLabel
-          })
-        }
+        const completionTokens = estimateTokens(completionContent)
+        const totalTokens = promptTokens + completionTokens
+        const modelLabel = aiProvider === 'codex' ? `codex/${model}` : aiProvider === 'openai' ? `openai/${model}` : model
+        const modelInfo = aiProvider === 'openrouter'
+          ? DEFAULT_MODELS.find(m => m.id === model) || getCachedModels().find(m => m.id === model)
+          : aiProvider === 'openai'
+            ? { pricing: OPENAI_MODEL_PRICING[model] }
+            : undefined
+        const promptPrice = modelInfo?.pricing?.prompt || '0'
+        const completionPrice = modelInfo?.pricing?.completion || '0'
+        const totalCost = aiProvider === 'codex'
+          ? 0
+          : estimateCost(promptTokens, completionTokens, promptPrice, completionPrice)
+        sendDone({
+          promptTokens,
+          completionTokens,
+          totalTokens,
+          totalCost,
+          model: modelLabel
+        })
       },
       onError: (error: string) => {
-        if (!event.sender.isDestroyed()) {
-          event.sender.send(IPC_CHANNELS.AI_STREAM_ERROR, error)
-        }
+        sendError(error)
       }
     }
 
@@ -366,7 +439,7 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
     if (aiProvider === 'codex') {
       await streamCodexCompletion(textOnlyMessages, model, streamCallbacks)
     } else if (aiProvider === 'openai') {
-      await streamOpenAICompletion(textOnlyMessages, model, openaiApiKey, streamCallbacks)
+      await streamOpenAICompletion(textOnlyMessages, model, openaiApiKey, streamCallbacks, 1500, imageAttached ? screenshot : undefined)
     } else {
       await streamCompletion(messages, model, openrouterApiKey, streamCallbacks)
     }
@@ -402,6 +475,12 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
   // Audio config check — called before starting recording to give immediate feedback
   ipcMain.handle(IPC_CHANNELS.AUDIO_CHECK_CONFIG, () => {
     return checkWhisperConfig()
+  })
+
+  // Clear the rolling transcript buffer — called when a new chat or a new
+  // recording session starts so stale speech never leaks into later answers.
+  ipcMain.on(IPC_CHANNELS.TRANSCRIPT_CLEAR, () => {
+    clearTranscript()
   })
 
   // Audio transcription — receives audio buffer from renderer's MediaRecorder

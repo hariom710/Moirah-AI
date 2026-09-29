@@ -3,14 +3,10 @@
 // This module receives audio buffers via IPC and sends them to a Whisper-compatible API.
 
 import { getSetting } from '../services/store'
-import { tmpdir } from 'os'
-import { join } from 'path'
-import { writeFileSync, unlinkSync, existsSync } from 'fs'
-import { randomBytes } from 'crypto'
 
 let transcriptBuffer = ''
 
-const MAX_TRANSCRIPT_LENGTH = 5000
+const DEFAULT_MAX_TRANSCRIPT_LENGTH = 5000
 
 // Max audio buffer size: 25MB (Whisper API limit)
 const MAX_AUDIO_BUFFER_SIZE = 25 * 1024 * 1024
@@ -74,11 +70,19 @@ function sanitizeMimeType(mimeType: string): string | null {
 }
 
 /**
- * Generate a cryptographically random temp file name to prevent predictable paths.
+ * Resolve the rolling transcript buffer limit from user settings.
+ * Falls back to the default when the setting is missing or invalid.
  */
-function secureTempPath(ext: string): string {
-  const randomId = randomBytes(16).toString('hex')
-  return join(tmpdir(), `specter-audio-${randomId}.${ext}`)
+export function resolveTranscriptLimit(): number {
+  try {
+    const configured = getSetting<number>('maxTranscriptLength')
+    if (typeof configured === 'number' && Number.isFinite(configured)) {
+      return Math.max(100, Math.min(100000, Math.floor(configured)))
+    }
+  } catch {
+    // Settings store unavailable (e.g. unit tests) — use the default.
+  }
+  return DEFAULT_MAX_TRANSCRIPT_LENGTH
 }
 
 /**
@@ -212,11 +216,10 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Pr
 
   // Get safe file extension from validated MIME type
   const ext = MIME_TO_EXT[safeMimeType] || 'webm'
-  const tmpPath = secureTempPath(ext)
 
+  // NOTE: the audio Blob is built directly from the in-memory buffer below.
+  // Raw microphone audio is never written to disk.
   try {
-    writeFileSync(tmpPath, audioBuffer, { mode: 0o600 }) // restrictive permissions
-
     // Send to Whisper API with timeout
     const abortController = new AbortController()
     const timeout = setTimeout(() => abortController.abort(), WHISPER_REQUEST_TIMEOUT_MS)
@@ -235,8 +238,6 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Pr
         formData.append('language', language)
       }
 
-      console.log(`[Specter] Sending ${audioBuffer.length} bytes (${ext}) to ${config.url} using model ${config.model}`)
-
       const response = await fetch(config.url, {
         method: 'POST',
         headers: {
@@ -250,15 +251,13 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Pr
         const data = await response.json() as { text?: string }
         const text = typeof data.text === 'string' ? data.text.trim() : ''
         if (text) {
-          console.log(`[Specter] Transcription: "${text.slice(0, 80)}${text.length > 80 ? '...' : ''}"`)
           appendTranscript(text)
           return text
         }
         return ''
       } else {
-        const errorBody = await response.text().catch(() => '')
-        const truncatedBody = errorBody.slice(0, 200)
-        console.warn(`[Specter] Whisper API ${response.status}: ${truncatedBody}`)
+        // Log status only — never log response bodies, which may echo audio metadata.
+        console.warn(`[Specter] Whisper API error: ${response.status}`)
 
         if (response.status === 401 || response.status === 403) {
           throw new Error('Whisper API key is invalid or expired. Check Settings > Audio Transcription.')
@@ -272,7 +271,7 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Pr
           return ''
         }
 
-        throw new Error(`Whisper API error ${response.status}: ${truncatedBody || response.statusText}`)
+        throw new Error(`Whisper API error ${response.status}: ${response.statusText}`)
       }
     } finally {
       clearTimeout(timeout)
@@ -285,21 +284,14 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Pr
     // Re-throw all errors so they reach the renderer for user feedback
     if (err instanceof Error) throw err
     throw new Error(`Transcription failed: ${String(err)}`)
-  } finally {
-    // Clean up temp file securely
-    try {
-      if (existsSync(tmpPath)) unlinkSync(tmpPath)
-    } catch {
-      // ignore cleanup failures
-    }
   }
 }
 
-export function appendTranscript(text: string, maxLength: number = MAX_TRANSCRIPT_LENGTH): void {
+export function appendTranscript(text: string, maxLength: number = resolveTranscriptLimit()): void {
   // Sanitize: only allow printable characters in transcript
   const sanitized = text.replace(/[^\x20-\x7E\u00A0-\uFFFF\n\r\t]/g, '')
   transcriptBuffer += ' ' + sanitized
-  // Keep rolling buffer within max length
+  // Keep rolling buffer within max length (tail = most recent conversation)
   if (transcriptBuffer.length > maxLength) {
     transcriptBuffer = transcriptBuffer.slice(-maxLength)
   }

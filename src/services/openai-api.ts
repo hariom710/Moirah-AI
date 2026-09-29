@@ -9,18 +9,59 @@ export interface OpenAIStreamCallbacks {
   onError: (error: string) => void
 }
 
-function buildInput(messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>): string {
-  const system = messages.find((m) => m.role === 'system')?.content || ''
-  const conversation = messages
-    .filter((m) => m.role !== 'system')
-    .map((m) => `${m.role.toUpperCase()}:\n${m.content}`)
-    .join('\n\n')
+interface ResponseInputContent {
+  type: 'input_text' | 'input_image'
+  text?: string
+  image_url?: string
+}
 
-  return [
-    system ? `SYSTEM:\n${system}` : '',
-    conversation,
-    'Return only the assistant response.'
-  ].filter(Boolean).join('\n\n')
+interface ResponseInputMessage {
+  role: 'user' | 'assistant'
+  content: string | ResponseInputContent[]
+}
+
+/**
+ * Build a Responses-API request body that preserves role structure.
+ * The system prompt goes in `instructions`; conversation turns go in `input`.
+ * An optional screenshot is attached to the latest user turn as `input_image`.
+ */
+export function buildResponsesRequest(
+  messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
+  model: string,
+  maxOutputTokens: number,
+  imageBase64?: string
+): Record<string, unknown> {
+  const instructions = messages.find((m) => m.role === 'system')?.content || undefined
+  const turns = messages.filter((m) => m.role !== 'system')
+
+  const input: ResponseInputMessage[] = turns.map((m) => ({
+    role: m.role === 'assistant' ? 'assistant' : 'user',
+    content: m.content
+  }))
+
+  if (imageBase64) {
+    const lastUser = [...input].reverse().find((m) => m.role === 'user')
+    const imagePart: ResponseInputContent = {
+      type: 'input_image',
+      image_url: `data:image/jpeg;base64,${imageBase64}`
+    }
+    if (lastUser) {
+      const text = typeof lastUser.content === 'string' ? lastUser.content : ''
+      lastUser.content = [{ type: 'input_text', text }, imagePart]
+    } else {
+      input.push({ role: 'user', content: [{ type: 'input_text', text: '' }, imagePart] })
+    }
+  }
+
+  return {
+    model,
+    ...(instructions ? { instructions } : {}),
+    input,
+    max_output_tokens: maxOutputTokens,
+    stream: true,
+    // Do not persist prompts/completions on OpenAI's side.
+    store: false
+  }
 }
 
 function extractError(data: unknown): string {
@@ -33,7 +74,12 @@ function extractError(data: unknown): string {
   return 'OpenAI API request failed.'
 }
 
-function handleEvent(eventType: string, data: unknown, callbacks: OpenAIStreamCallbacks): boolean {
+/**
+ * Handle one parsed SSE event. Returns true when the event is terminal
+ * (the stream must not produce further callbacks after it).
+ * Exported for unit tests.
+ */
+export function handleEvent(eventType: string, data: unknown, callbacks: OpenAIStreamCallbacks): boolean {
   if (typeof data !== 'object' || data === null) return false
   const record = data as Record<string, unknown>
 
@@ -46,6 +92,21 @@ function handleEvent(eventType: string, data: unknown, callbacks: OpenAIStreamCa
     return true
   }
 
+  if (eventType === 'response.incomplete') {
+    const reason =
+      (record.response as Record<string, unknown> | undefined)?.incomplete_details ??
+      record.incomplete_details
+    const detail = typeof reason === 'object' && reason !== null
+      ? (reason as Record<string, unknown>).reason
+      : undefined
+    callbacks.onError(
+      typeof detail === 'string' && detail
+        ? `OpenAI response incomplete (${detail}). Try a larger output limit or a shorter prompt.`
+        : 'OpenAI response was cut off before completing. Try again with a shorter prompt.'
+    )
+    return true
+  }
+
   if (eventType === 'response.failed' || eventType === 'error') {
     callbacks.onError(extractError(record))
     return true
@@ -54,7 +115,12 @@ function handleEvent(eventType: string, data: unknown, callbacks: OpenAIStreamCa
   return false
 }
 
-function processSseBlock(block: string, callbacks: OpenAIStreamCallbacks): boolean {
+/**
+ * Parse one SSE block. Returns true when the block was terminal.
+ * Falls back to the JSON `type` field when the SSE `event:` field is absent
+ * (some proxies strip event names). Exported for unit tests.
+ */
+export function processSseBlock(block: string, callbacks: OpenAIStreamCallbacks): boolean {
   let eventType = ''
   const dataLines: string[] = []
 
@@ -67,10 +133,16 @@ function processSseBlock(block: string, callbacks: OpenAIStreamCallbacks): boole
   }
 
   const rawData = dataLines.join('\n')
-  if (!rawData || rawData === '[DONE]') return rawData === '[DONE]'
+  if (!rawData) return false
+  if (rawData === '[DONE]') {
+    callbacks.onDone()
+    return true
+  }
 
   try {
-    return handleEvent(eventType, JSON.parse(rawData), callbacks)
+    const parsed = JSON.parse(rawData) as Record<string, unknown>
+    const resolvedType = eventType || (typeof parsed.type === 'string' ? parsed.type : '')
+    return handleEvent(resolvedType, parsed, callbacks)
   } catch {
     return false
   }
@@ -81,24 +153,47 @@ export async function streamOpenAICompletion(
   model: string,
   apiKey: string,
   callbacks: OpenAIStreamCallbacks,
-  maxOutputTokens = 1500
+  maxOutputTokens = 1500,
+  imageBase64?: string
 ): Promise<void> {
   currentAbortController = new AbortController()
-  let finished = false
+
+  // Exactly one terminal callback per request — no hangs, no double-fires.
+  let settled = false
+  const finishOk = () => {
+    if (!settled) {
+      settled = true
+      callbacks.onDone()
+    }
+  }
+  const finishErr = (message: string) => {
+    if (!settled) {
+      settled = true
+      callbacks.onError(message)
+    }
+  }
+  const guarded: OpenAIStreamCallbacks = {
+    onChunk: (content) => {
+      if (!settled) callbacks.onChunk(content)
+    },
+    onDone: finishOk,
+    onError: finishErr
+  }
 
   try {
+    const body = buildResponsesRequest(messages, model, maxOutputTokens, imageBase64)
+    if ((body.input as unknown[]).length === 0) {
+      finishErr('Nothing to send to OpenAI.')
+      return
+    }
+
     const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        model,
-        input: buildInput(messages),
-        max_output_tokens: maxOutputTokens,
-        stream: true
-      }),
+      body: JSON.stringify(body),
       signal: currentAbortController.signal
     })
 
@@ -110,12 +205,12 @@ export async function streamOpenAICompletion(
       } catch {
         // Keep HTTP status as the error message.
       }
-      callbacks.onError(message)
+      finishErr(message)
       return
     }
 
     if (!response.body) {
-      callbacks.onError('OpenAI API returned an empty response.')
+      finishErr('OpenAI API returned an empty response.')
       return
     }
 
@@ -132,26 +227,24 @@ export async function streamOpenAICompletion(
       buffer = blocks.pop() || ''
 
       for (const block of blocks) {
-        if (processSseBlock(block, callbacks)) {
-          finished = true
-        }
+        processSseBlock(block, guarded)
       }
     }
 
     if (buffer.trim()) {
-      finished = processSseBlock(buffer, callbacks) || finished
+      processSseBlock(buffer, guarded)
     }
 
-    if (!finished) {
-      callbacks.onDone()
-    }
+    // Stream ended without a terminal event — treat buffered output as complete.
+    finishOk()
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'AbortError') {
-      callbacks.onDone()
+      // User cancelled — close the stream as done (renderer already reset its state).
+      finishOk()
       return
     }
     const message = err instanceof Error ? err.message : 'Unknown OpenAI API error'
-    callbacks.onError(message)
+    finishErr(message)
   } finally {
     currentAbortController = null
   }

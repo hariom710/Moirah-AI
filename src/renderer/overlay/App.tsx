@@ -31,6 +31,18 @@ function getPreferredMimeType(): string {
 
 const TRANSCRIPTION_INTERVAL_MS = 10_000 // send audio for transcription every 10 seconds
 
+/** Unique ID per AI request — lets the UI ignore stale stream events. */
+function newRequestId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID()
+    }
+  } catch {
+    // Fall through to the timestamp fallback below.
+  }
+  return `req-${Date.now()}-${Math.floor(Math.random() * 1e9)}`
+}
+
 export default function App() {
   const [query, setQuery] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
@@ -68,18 +80,24 @@ export default function App() {
   const isStreamingRef = useRef(isStreaming)
   const isRecordingRef = useRef(isRecording)
   const includeScreenRef = useRef(includeScreen)
+  const attachedScreenshotRef = useRef<string | null>(null)
   const messagesRef = useRef(messages)
   const selectedModelRef = useRef(selectedModel)
   const autoAnswerRef = useRef(autoAnswer)
   const interviewModeRef = useRef(interviewMode)
   const lastAnsweredRef = useRef('')
   const lastAutoAnswerAtRef = useRef(0)
+  // ID of the in-flight AI request — stale stream events are ignored.
+  const activeRequestIdRef = useRef('')
+  // Rolling transcript cap, loaded from settings when recording starts.
+  const transcriptLimitRef = useRef(5000)
 
   // Keep refs in sync with state
   queryRef.current = query
   isStreamingRef.current = isStreaming
   isRecordingRef.current = isRecording
   includeScreenRef.current = includeScreen
+  attachedScreenshotRef.current = attachedScreenshot
   messagesRef.current = messages
   selectedModelRef.current = selectedModel
   autoAnswerRef.current = autoAnswer
@@ -237,8 +255,9 @@ export default function App() {
       if (text) {
         setTranscript(prev => {
           const updated = (prev + ' ' + text).trim()
-          // Keep rolling buffer within 5000 chars
-          return updated.length > 5000 ? updated.slice(-5000) : updated
+          // Keep rolling buffer within the configured limit (tail = most recent)
+          const limit = transcriptLimitRef.current > 0 ? transcriptLimitRef.current : 5000
+          return updated.length > limit ? updated.slice(-limit) : updated
         })
         // Clear any previous audio error on success
         setAudioError(null)
@@ -327,6 +346,16 @@ export default function App() {
    */
   const startRecording = useCallback(async () => {
     setAudioError(null)
+
+    // A new recording session starts with a clean transcript — previous
+    // sessions must never leak into new answers.
+    setTranscript('')
+    window.specterAPI?.clearTranscript()
+    window.specterAPI?.getSetting<number>('maxTranscriptLength').then((limit) => {
+      if (typeof limit === 'number' && limit >= 100 && limit <= 100000) {
+        transcriptLimitRef.current = Math.floor(limit)
+      }
+    }).catch(() => {})
 
     // Check whisper config before starting — give immediate feedback
     try {
@@ -466,15 +495,21 @@ export default function App() {
     setStreamingContent('')
     pendingCostRef.current = null
 
-    // Send with conversation history for context
+    // Correlate stream events with this request; send the exact screenshot
+    // the user attached (main must not silently recapture a different frame).
+    const requestId = newRequestId()
+    activeRequestIdRef.current = requestId
+    const screenshot = attachedScreenshotRef.current ?? undefined
     window.specterAPI?.queryAI(
       userMessage.content,
       useScreen,
       isRecordingRef.current,
-      history
+      history,
+      { requestId, screenshot }
     )
 
     // Clear attached screenshot after sending
+    attachedScreenshotRef.current = null
     setAttachedScreenshot(null)
   }, [getMessageHistory])
 
@@ -505,14 +540,18 @@ export default function App() {
     pendingCostRef.current = null
 
     // Always include screen for analyze
+    const requestId = newRequestId()
+    activeRequestIdRef.current = requestId
     window.specterAPI?.queryAI(
       userMessage.content,
       true, // always include screen
       isRecordingRef.current,
-      history
+      history,
+      { requestId }
     )
 
     setIsCapturing(false)
+    attachedScreenshotRef.current = null
     setAttachedScreenshot(null)
   }, [isCapturing, getMessageHistory])
 
@@ -540,11 +579,13 @@ export default function App() {
     setStreamingContent('')
     pendingCostRef.current = null
 
+    const requestId = newRequestId()
+    activeRequestIdRef.current = requestId
+
     // Always include screen context for meeting recordings.
     // Frame the transcript so the AI answers questions from BOTH screen and audio.
     // Critical: do NOT ask the AI to "suggest responses" — that causes verbose etiquette advice.
-    const framedQuery = [
-      `MEETING AUDIO TRANSCRIPT: "${meetingTranscript}"`,
+    const framedQuery = [      `MEETING AUDIO TRANSCRIPT: "${meetingTranscript}"`,
       '',
       'INSTRUCTIONS:',
       '- Look at BOTH the screen content AND the transcript above.',
@@ -560,7 +601,8 @@ export default function App() {
       framedQuery,
       true, // include screen — so AI sees what the interviewer is showing
       false, // audio transcript is already in the query
-      history
+      history,
+      { requestId }
     )
   }, [getMessageHistory])
 
@@ -589,6 +631,9 @@ export default function App() {
     setStreamingContent('')
     pendingCostRef.current = null
 
+    const requestId = newRequestId()
+    activeRequestIdRef.current = requestId
+
     const framedQuery = [
       `LIVE INTERVIEW QUESTION (heard via microphone): "${question}"`,
       heard && heard !== question ? `FULL HEARD SEGMENT: "${heard.slice(0, 800)}"` : '',
@@ -606,7 +651,8 @@ export default function App() {
       framedQuery,
       true, // include screen — on-screen code/MCQ may accompany the spoken question
       true, // include rolling transcript for extra conversational context
-      history
+      history,
+      { requestId }
     )
   }, [getMessageHistory])
 
@@ -655,6 +701,9 @@ export default function App() {
     setStreamingContent('')
     setError(null)
     setAudioError(null)
+    setTranscript('')
+    // Drop the rolling transcript too — a new chat must not inherit old speech.
+    window.specterAPI?.clearTranscript()
     conversationIdRef.current = `conv-${Date.now()}`
   }, [])
 
@@ -729,11 +778,15 @@ export default function App() {
     const api = window.specterAPI
     if (!api) return
 
-    const unsubChunk = api.onStreamChunk((chunk) => {
-      setStreamingContent((prev) => prev + chunk)
+    const unsubChunk = api.onStreamChunk((data) => {
+      // Ignore chunks from a previous/cancelled request.
+      if (data.requestId !== activeRequestIdRef.current) return
+      setStreamingContent((prev) => prev + data.chunk)
     })
 
     const unsubDone = api.onStreamDone((data: StreamDoneData) => {
+      // Ignore completion of a previous/cancelled request.
+      if (data.requestId !== activeRequestIdRef.current) return
       pendingCostRef.current = data
       // Update selectedModel from the response if available
       if (data.model) setSelectedModel(data.model)
@@ -758,7 +811,10 @@ export default function App() {
       pendingCostRef.current = null
     })
 
-    const unsubError = api.onStreamError((errMsg) => {
+    const unsubError = api.onStreamError((data) => {
+      // Ignore errors from a previous/cancelled request.
+      if (data.requestId !== activeRequestIdRef.current) return
+      const errMsg = data.error
       // Parse and show user-friendly error messages
       let displayError = errMsg
       if (errMsg.includes('Codex CLI was not found')) {
@@ -1097,7 +1153,7 @@ export default function App() {
               {isCapturing ? 'Capturing...' : 'Analyze Screen'}
             </button>
 
-            {/* Record Meeting — system audio capture */}
+            {/* Record Meeting — microphone capture (not system/loopback audio) */}
             <MeetingRecorder
               onTranscriptReady={submitMeetingTranscript}
               disabled={isStreaming}
@@ -1180,14 +1236,18 @@ export default function App() {
       {/* Transcript bar */}
       {isRecording && !showHistory && <TranscriptBar transcript={transcript} isRecording={isRecording} />}
 
-      {/* Attached screenshot preview */}
+      {/* Attached screenshot preview — shows the exact frame that will be sent */}
       {attachedScreenshot && !showHistory && (
         <div className="px-3 py-1.5 border-t border-white/5">
           <div className="flex items-center gap-2 bg-violet-500/10 rounded-lg px-2.5 py-1.5 border border-violet-500/20">
-            <Monitor className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+            <img
+              src={`data:image/jpeg;base64,${attachedScreenshot}`}
+              alt="Attached screenshot preview"
+              className="h-10 w-auto rounded border border-violet-500/30 object-cover shrink-0"
+            />
             <span className="text-violet-300 text-[11px] flex-1 truncate">Screenshot attached</span>
             <button
-              onClick={() => { setAttachedScreenshot(null); setIncludeScreen(false) }}
+              onClick={() => { attachedScreenshotRef.current = null; setAttachedScreenshot(null); setIncludeScreen(false) }}
               className="p-0.5 rounded hover:bg-white/10 transition-colors"
               title="Remove screenshot"
             >

@@ -1,7 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from '../shared/ipc-channels'
 
+export interface StreamChunkData {
+  requestId: string
+  chunk: string
+}
+
 export interface StreamDoneData {
+  requestId: string
   promptTokens: number
   completionTokens: number
   totalTokens: number
@@ -9,13 +15,25 @@ export interface StreamDoneData {
   model: string
 }
 
+export interface StreamErrorData {
+  requestId: string
+  error: string
+}
+
+export interface AIQueryOptions {
+  /** Correlates stream events with the request that produced them. */
+  requestId?: string
+  /** Base64 screenshot captured by the overlay — sent as-is, never recaptured. */
+  screenshot?: string
+}
+
 export interface SpecterAPI {
   // AI
-  queryAI: (query: string, includeScreen: boolean, includeAudio: boolean, messageHistory?: Array<{ role: string; content: string }>) => void
+  queryAI: (query: string, includeScreen: boolean, includeAudio: boolean, messageHistory?: Array<{ role: string; content: string }>, options?: AIQueryOptions) => void
   cancelAI: () => void
-  onStreamChunk: (callback: (chunk: string) => void) => () => void
+  onStreamChunk: (callback: (data: StreamChunkData) => void) => () => void
   onStreamDone: (callback: (data: StreamDoneData) => void) => () => void
-  onStreamError: (callback: (error: string) => void) => () => void
+  onStreamError: (callback: (data: StreamErrorData) => void) => () => void
 
   // Screen
   captureScreen: () => Promise<{ text: string; screenshot?: string; timestamp: number }>
@@ -25,6 +43,7 @@ export interface SpecterAPI {
   // Audio — recording is handled in renderer via MediaRecorder
   checkAudioConfig: () => Promise<{ configured: boolean; provider: string; error?: string }>
   sendAudioForTranscription: (audioData: ArrayBuffer, mimeType: string) => Promise<string>
+  clearTranscript: () => void
   onTranscript: (callback: (text: string) => void) => () => void
   onAudioStatus: (callback: (status: { isRecording: boolean; duration: number; error?: string }) => void) => () => void
 
@@ -80,16 +99,29 @@ function isString(v: unknown): v is string {
   return typeof v === 'string'
 }
 
+function isStreamChunkData(v: unknown): v is StreamChunkData {
+  if (typeof v !== 'object' || v === null) return false
+  const d = v as Record<string, unknown>
+  return typeof d.requestId === 'string' && typeof d.chunk === 'string'
+}
+
 function isStreamDoneData(v: unknown): v is StreamDoneData {
   if (typeof v !== 'object' || v === null) return false
   const d = v as Record<string, unknown>
   return (
+    typeof d.requestId === 'string' &&
     typeof d.promptTokens === 'number' &&
     typeof d.completionTokens === 'number' &&
     typeof d.totalTokens === 'number' &&
     typeof d.totalCost === 'number' &&
     typeof d.model === 'string'
   )
+}
+
+function isStreamErrorData(v: unknown): v is StreamErrorData {
+  if (typeof v !== 'object' || v === null) return false
+  const d = v as Record<string, unknown>
+  return typeof d.requestId === 'string' && typeof d.error === 'string'
 }
 
 function isAudioStatus(v: unknown): v is { isRecording: boolean; duration: number; error?: string } {
@@ -100,16 +132,23 @@ function isAudioStatus(v: unknown): v is { isRecording: boolean; duration: numbe
 
 const api: SpecterAPI = {
   // AI
-  queryAI: (query, includeScreen, includeAudio, messageHistory) => {
+  queryAI: (query, includeScreen, includeAudio, messageHistory, options) => {
     if (typeof query !== 'string') return
-    ipcRenderer.send(IPC_CHANNELS.AI_QUERY, { query, includeScreen: !!includeScreen, includeAudio: !!includeAudio, messageHistory: messageHistory || [] })
+    ipcRenderer.send(IPC_CHANNELS.AI_QUERY, {
+      query,
+      includeScreen: !!includeScreen,
+      includeAudio: !!includeAudio,
+      messageHistory: messageHistory || [],
+      requestId: typeof options?.requestId === 'string' ? options.requestId.slice(0, 128) : '',
+      screenshot: typeof options?.screenshot === 'string' ? options.screenshot : undefined
+    })
   },
   cancelAI: () => {
     ipcRenderer.send(IPC_CHANNELS.AI_CANCEL)
   },
   onStreamChunk: (callback) => {
-    const handler = (_: Electron.IpcRendererEvent, chunk: unknown) => {
-      if (isString(chunk)) callback(chunk)
+    const handler = (_: Electron.IpcRendererEvent, data: unknown) => {
+      if (isStreamChunkData(data)) callback(data)
     }
     ipcRenderer.on(IPC_CHANNELS.AI_STREAM_CHUNK, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.AI_STREAM_CHUNK, handler)
@@ -122,8 +161,8 @@ const api: SpecterAPI = {
     return () => ipcRenderer.removeListener(IPC_CHANNELS.AI_STREAM_DONE, handler)
   },
   onStreamError: (callback) => {
-    const handler = (_: Electron.IpcRendererEvent, error: unknown) => {
-      callback(isString(error) ? error : 'An unknown error occurred')
+    const handler = (_: Electron.IpcRendererEvent, data: unknown) => {
+      if (isStreamErrorData(data)) callback(data)
     }
     ipcRenderer.on(IPC_CHANNELS.AI_STREAM_ERROR, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.AI_STREAM_ERROR, handler)
@@ -147,6 +186,9 @@ const api: SpecterAPI = {
   sendAudioForTranscription: (audioData: ArrayBuffer, mimeType: string) => {
     if (typeof mimeType !== 'string') mimeType = 'audio/webm;codecs=opus'
     return ipcRenderer.invoke(IPC_CHANNELS.AUDIO_TRANSCRIBE, audioData, mimeType) as Promise<string>
+  },
+  clearTranscript: () => {
+    ipcRenderer.send(IPC_CHANNELS.TRANSCRIPT_CLEAR)
   },
   onTranscript: (callback) => {
     const handler = (_: Electron.IpcRendererEvent, text: unknown) => {

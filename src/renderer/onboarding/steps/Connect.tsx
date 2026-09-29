@@ -231,11 +231,12 @@ function KeyConnect({ provider, onProviderChange, onNext, onBack }: Props) {
 function CodexConnect({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const [status, setStatus] = useState<{ installed: boolean; loggedInHint: boolean } | null>(null)
 
-  // There's no key to validate here, so persist the provider up front —
-  // otherwise aiProvider stays 'openrouter' and every query fails after setup.
-  useEffect(() => {
+  // Persist the provider only when the user continues with a detected CLI.
+  // Persisting on mount strands users who go Back/close with an unusable provider.
+  function handleContinue() {
     window.specterAPI?.setSetting('aiProvider', 'codex').catch(() => {})
-  }, [])
+    onNext()
+  }
 
   useEffect(() => {
     window.specterAPI?.checkCodex().then(setStatus).catch(() => setStatus({ installed: false, loggedInHint: false }))
@@ -293,7 +294,7 @@ function CodexConnect({ onNext, onBack }: { onNext: () => void; onBack: () => vo
           <ArrowLeft className="w-3.5 h-3.5" /> Back
         </button>
         <button
-          onClick={onNext}
+          onClick={handleContinue}
           disabled={!status?.installed}
           className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl
                      bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed

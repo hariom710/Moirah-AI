@@ -191,11 +191,13 @@ Microphone -> MediaRecorder API -> Whisper (Groq/OpenAI/custom) -> transcript te
 
 ### Privacy Model
 
-- **All processing is local** except the AI API call to OpenRouter
-- OCR text and transcript are sent to OpenRouter only when the user triggers a query
-- No telemetry, no analytics, no data collection
-- API key is encrypted locally via Electron `safeStorage` (OS keychain on macOS, DPAPI on Windows, libsecret on Linux)
-- Raw audio and screenshots are never sent anywhere -- only extracted text
+- **All processing is local** except the AI calls you trigger
+- OCR text and transcript are sent to your chosen AI provider only when you trigger a query
+- **Raw microphone audio is sent to your transcription provider** (Groq / OpenAI / your custom Whisper endpoint) while recording — transcription cannot happen without it
+- **Screenshots are sent to vision-capable models** (OpenRouter vision models, direct OpenAI) when screen context is enabled; text-only backends receive OCR text only
+- No telemetry, no analytics, no data collection, no servers of ours
+- API keys are encrypted locally via Electron `safeStorage` (OS keychain on macOS, DPAPI on Windows, libsecret on Linux) when the OS store is available
+- Conversations, playbooks, and interview profiles are stored locally on your machine — use Clear/Delete controls to remove them
 
 ---
 

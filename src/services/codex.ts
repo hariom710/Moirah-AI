@@ -77,9 +77,27 @@ export async function streamCodexCompletion(
   await new Promise<void>((resolve) => {
     const child = spawn(codexCommand(), args, {
       stdio: ['pipe', 'pipe', 'pipe'],
-      windowsHide: true
+      windowsHide: true,
+      // codex.cmd is a batch shim on Windows — it requires a shell to launch.
+      shell: process.platform === 'win32'
     })
     currentCodexProcess = child
+
+    // Hard deadline so a hung CLI can never stall the overlay forever.
+    const timeout = setTimeout(() => {
+      if (!completed && !failed) {
+        failed = true
+        try {
+          child.kill()
+        } catch {
+          // Already exited — the close handler below will settle.
+        }
+        callbacks.onError('Codex timed out after 3 minutes. Try a shorter question or restart Codex.')
+        resolve()
+      }
+    }, 180_000)
+    // Don't keep the event loop alive just for the deadline timer.
+    if (typeof timeout.unref === 'function') timeout.unref()
 
     const finishWithError = (message: string) => {
       if (failed || completed) return
@@ -139,6 +157,7 @@ export async function streamCodexCompletion(
     })
 
     child.on('close', (code) => {
+      clearTimeout(timeout)
       if (stdoutBuffer.trim()) handleLine(stdoutBuffer)
       currentCodexProcess = null
 

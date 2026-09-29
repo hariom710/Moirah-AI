@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Keyboard, MousePointerClick, Check } from 'lucide-react'
 import { DEFAULT_HOTKEYS } from '../../../shared/constants'
 
@@ -5,12 +6,19 @@ interface Props {
   onFinish: () => void
 }
 
-const HOTKEY_LABELS: Array<{ key: string; label: string }> = [
-  { key: DEFAULT_HOTKEYS.askAI, label: 'Ask AI with screen context' },
-  { key: DEFAULT_HOTKEYS.screenshotAsk, label: 'Ask AI with a screenshot' },
-  { key: DEFAULT_HOTKEYS.toggleOverlay, label: 'Show / hide the overlay' },
-  { key: DEFAULT_HOTKEYS.toggleAudio, label: 'Start / stop audio transcription' }
-]
+interface HotkeyRow {
+  key: string
+  label: string
+}
+
+function buildRows(hotkeys: typeof DEFAULT_HOTKEYS): HotkeyRow[] {
+  return [
+    { key: hotkeys.askAI, label: 'Send / ask AI' },
+    { key: hotkeys.screenshotAsk, label: 'Ask AI with screen capture' },
+    { key: hotkeys.toggleOverlay, label: 'Show / hide the overlay' },
+    { key: hotkeys.toggleAudio, label: 'Start / stop audio transcription' }
+  ]
+}
 
 function prettyKey(k: string): string {
   return k
@@ -19,6 +27,15 @@ function prettyKey(k: string): string {
 }
 
 export default function Done({ onFinish }: Props) {
+  // Show the user's actual hotkeys (they may have customised them), not the defaults.
+  const [rows, setRows] = useState<HotkeyRow[]>(() => buildRows(DEFAULT_HOTKEYS))
+
+  useEffect(() => {
+    window.specterAPI?.getSetting<typeof DEFAULT_HOTKEYS>('hotkeys').then((h) => {
+      if (h && typeof h.askAI === 'string') setRows(buildRows({ ...DEFAULT_HOTKEYS, ...h }))
+    }).catch(() => {})
+  }, [])
+
   return (
     <div className="max-w-lg mx-auto px-8 py-8">
       <div className="flex items-center gap-3 mb-2">
@@ -27,7 +44,7 @@ export default function Done({ onFinish }: Props) {
         </div>
         <div>
           <h2 className="text-lg font-semibold">You&apos;re all set</h2>
-          <p className="text-xs text-white/40">The overlay is ready in the top-right corner.</p>
+          <p className="text-xs text-white/40">The overlay is ready — move it anywhere you like.</p>
         </div>
       </div>
 
@@ -37,7 +54,7 @@ export default function Done({ onFinish }: Props) {
           <span className="text-sm font-medium text-white/70">Hotkeys</span>
         </div>
         <div className="space-y-2">
-          {HOTKEY_LABELS.map((h) => (
+          {rows.map((h) => (
             <div key={h.key} className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/[0.03]">
               <span className="text-xs text-white/60">{h.label}</span>
               <code className="text-[11px] px-2 py-1 rounded bg-black/40 font-mono text-violet-300">

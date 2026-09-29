@@ -1,7 +1,8 @@
 // MeetingRecorder — captures microphone audio during meetings/interviews,
 // transcribes via Whisper (Groq), and sends transcript to AI for an answer.
-// Uses getUserMedia (microphone) which reliably captures the user's voice
-// and picks up meeting audio from speakers.
+// Uses getUserMedia (microphone): reliably captures the user's voice and picks
+// up nearby speaker audio. Note: this is NOT system/loopback capture — remote
+// meeting audio played only through headphones will not be recorded.
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Radio, Square, Loader2 } from 'lucide-react'

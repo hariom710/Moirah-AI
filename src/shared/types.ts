@@ -75,6 +75,12 @@ export interface ContextSnapshot {
   transcript: string
   userQuery?: string
   screenshot?: string // base64
+  /**
+   * Whether the screenshot bytes will actually be attached to the model request.
+   * False for text-only providers (e.g. Codex) — the prompt then tells the model
+   * to rely on OCR text instead of claiming an image is attached.
+   */
+  imageAttached?: boolean
   // Interview grounding (optional — injected when interviewMode is on)
   interviewCompany?: string
   interviewRole?: string
