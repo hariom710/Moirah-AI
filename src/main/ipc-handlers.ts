@@ -431,7 +431,7 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
       onDone: () => {
         const completionTokens = estimateTokens(completionContent)
         const totalTokens = promptTokens + completionTokens
-        const modelLabel = aiProvider === 'codex' ? `codex/${model}` : aiProvider === 'openai' ? `openai/${model}` : aiProvider === 'gemini' ? `gemini/${model}` : model
+        const modelLabel = aiProvider === 'codex' ? `codex/${model || 'default'}` : aiProvider === 'openai' ? `openai/${model}` : aiProvider === 'gemini' ? `gemini/${model}` : model
         const modelInfo = aiProvider === 'openrouter'
           ? DEFAULT_MODELS.find(m => m.id === model) || getCachedModels().find(m => m.id === model)
           : aiProvider === 'openai'

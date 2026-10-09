@@ -62,11 +62,15 @@ export async function streamCodexCompletion(
     '--sandbox',
     'read-only',
     '--skip-git-repo-check',
-    '--ephemeral',
-    '-m',
-    model,
-    '-'
+    '--ephemeral'
   ]
+  // Only force a model when one is explicitly configured. Codex authenticated
+  // with a ChatGPT account rejects generic models (e.g. gpt-5.4), so an empty
+  // setting lets the CLI use whatever default its login supports.
+  if (model.trim()) {
+    args.push('-m', model.trim())
+  }
+  args.push('-')
 
   let completed = false
   let failed = false

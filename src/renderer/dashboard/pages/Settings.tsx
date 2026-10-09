@@ -45,7 +45,7 @@ const DEFAULT_STATE: SettingsState = {
   openaiModel: 'gpt-5.5',
   geminiApiKey: '',
   geminiModel: 'gemini-2.5-flash',
-  codexModel: 'gpt-5.4',
+  codexModel: '',
   overlayOpacity: 0.85,
   autoCapture: false,
   autoCaptureInterval: 30,
@@ -100,7 +100,7 @@ export default function Settings() {
         openaiModel: all.openaiModel || 'gpt-5.5',
         geminiApiKey: all.geminiApiKey || '',
         geminiModel: all.geminiModel || 'gemini-2.5-flash',
-        codexModel: all.codexModel || 'gpt-5.4',
+        codexModel: all.codexModel || '',
         overlayOpacity: all.overlayOpacity || 0.85,
         autoCapture: all.autoCapture || false,
         autoCaptureInterval: all.autoCaptureInterval || 30,
@@ -495,14 +495,16 @@ export default function Settings() {
                 type="text"
                 value={settings.codexModel}
                 onChange={(e) => updateSetting('codexModel', e.target.value)}
-                placeholder="gpt-5.4"
+                placeholder="Default (recommended)"
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm
                            text-white/90 placeholder-white/20 focus:border-violet-500/40
                            focus:outline-none transition-colors"
               />
             </div>
             <p className="text-white/25 text-xs leading-relaxed">
-              Uses the local Codex CLI session. Run <span className="font-mono text-white/45">codex login</span> once, then save this page.
+              Uses the local Codex CLI session. Run <span className="font-mono text-white/45">codex login</span> once, then save this
+              page. Leave empty to use your plan&apos;s default model — ChatGPT accounts only accept Codex model IDs (e.g.{' '}
+              <span className="font-mono text-white/45">gpt-5.1-codex</span>), not generic models like gpt-5.4.
             </p>
           </div>
         </section>

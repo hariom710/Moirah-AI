@@ -129,7 +129,7 @@ export const DEFAULT_SETTINGS = {
   openaiModel: 'gpt-5.5',
   geminiApiKey: '',
   geminiModel: 'gemini-2.5-flash',
-  codexModel: 'gpt-5.4',
+  codexModel: '',
   overlayOpacity: 0.85,
   overlayPosition: { x: -1, y: -1 }, // -1 means auto-position
   overlaySize: { width: 420, height: 600 },

@@ -32,7 +32,7 @@ const CURATED: Record<ProviderId, Choice[]> = {
     { id: 'gpt-5.4-mini', label: 'Cheapest', desc: 'Small, fast, inexpensive', icon: Gift }
   ],
   codex: [
-    { id: 'gpt-5.4', label: 'Your plan', desc: 'Uses your ChatGPT/Codex plan login', icon: Sparkles }
+    { id: '', label: 'Your plan', desc: 'Uses your ChatGPT/Codex plan login with its default model', icon: Sparkles }
   ]
 }
 

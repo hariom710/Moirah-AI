@@ -52,7 +52,7 @@ const SETTINGS_KEY_VALIDATORS: Record<string, (value: unknown) => boolean> = {
   selectedModel: (v) => typeof v === 'string' && v.length <= 200 && /^[a-zA-Z0-9/_.:@-]+$/.test(v),
   openaiModel: (v) => typeof v === 'string' && v.length <= 100 && /^[a-zA-Z0-9_.:-]+$/.test(v),
   geminiModel: (v) => typeof v === 'string' && v.length <= 100 && /^[a-zA-Z0-9_.:-]+$/.test(v),
-  codexModel: (v) => typeof v === 'string' && v.length <= 100 && /^[a-zA-Z0-9_.:-]+$/.test(v),
+  codexModel: (v) => typeof v === 'string' && v.length <= 100 && (v === '' || /^[a-zA-Z0-9_.:-]+$/.test(v)),
   overlayOpacity: (v) => typeof v === 'number' && v >= 0.3 && v <= 1.0,
   overlayPosition: (v) =>
     typeof v === 'object' && v !== null &&
