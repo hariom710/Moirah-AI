@@ -64,10 +64,11 @@ export async function streamCodexCompletion(
     '--skip-git-repo-check',
     '--ephemeral'
   ]
-  // Only force a model when one is explicitly configured. Codex authenticated
-  // with a ChatGPT account rejects generic models (e.g. gpt-5.4), so an empty
-  // setting lets the CLI use whatever default its login supports.
-  if (model.trim()) {
+  // ChatGPT-account Codex sessions only accept Codex-specific model IDs —
+  // generic models (gpt-5.4, gpt-5.5, …) are rejected with a 400. Pass the
+  // configured model only when it looks like a Codex model; otherwise let the
+  // CLI use whatever default its login supports.
+  if (/codex/i.test(model)) {
     args.push('-m', model.trim())
   }
   args.push('-')
