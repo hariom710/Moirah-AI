@@ -11,7 +11,7 @@ import type { UserSettings, Conversation } from '../shared/types'
 //   macOS → Keychain
 //   Windows → DPAPI (tied to user account)
 //   Linux → libsecret / gnome-keyring
-const SENSITIVE_KEYS = new Set(['openrouterApiKey', 'openaiApiKey', 'whisperApiKey'])
+const SENSITIVE_KEYS = new Set(['openrouterApiKey', 'openaiApiKey', 'geminiApiKey', 'whisperApiKey'])
 
 function encryptSensitive(value: string): string {
   if (!value) return ''
@@ -21,7 +21,7 @@ function encryptSensitive(value: string): string {
       return encrypted.toString('base64')
     }
   } catch (err) {
-    console.warn('[Specter] safeStorage encryption unavailable, storing as-is:', err)
+    console.warn('[Moirah] safeStorage encryption unavailable, storing as-is:', err)
   }
   // Fallback: store raw (better than crashing; logs a warning)
   return value
@@ -44,12 +44,14 @@ function decryptSensitive(stored: string): string {
 // --- Settings value validation ---
 
 const SETTINGS_KEY_VALIDATORS: Record<string, (value: unknown) => boolean> = {
-  aiProvider: (v) => typeof v === 'string' && ['openrouter', 'openai', 'codex'].includes(v),
+  aiProvider: (v) => typeof v === 'string' && ['openrouter', 'openai', 'gemini', 'codex'].includes(v),
   openrouterApiKey: (v) => typeof v === 'string' && v.length <= 500,
   openaiApiKey: (v) => typeof v === 'string' && v.length <= 500,
+  geminiApiKey: (v) => typeof v === 'string' && v.length <= 500,
   whisperApiKey: (v) => typeof v === 'string' && v.length <= 500,
   selectedModel: (v) => typeof v === 'string' && v.length <= 200 && /^[a-zA-Z0-9/_.:@-]+$/.test(v),
   openaiModel: (v) => typeof v === 'string' && v.length <= 100 && /^[a-zA-Z0-9_.:-]+$/.test(v),
+  geminiModel: (v) => typeof v === 'string' && v.length <= 100 && /^[a-zA-Z0-9_.:-]+$/.test(v),
   codexModel: (v) => typeof v === 'string' && v.length <= 100 && /^[a-zA-Z0-9_.:-]+$/.test(v),
   overlayOpacity: (v) => typeof v === 'number' && v >= 0.3 && v <= 1.0,
   overlayPosition: (v) =>
@@ -84,7 +86,10 @@ const SETTINGS_KEY_VALIDATORS: Record<string, (value: unknown) => boolean> = {
   jobDescription: (v) => typeof v === 'string' && v.length <= 20000,
   resumeText: (v) => typeof v === 'string' && v.length <= 20000,
   interviewMode: (v) => typeof v === 'boolean',
-  autoAnswer: (v) => typeof v === 'boolean'
+  autoAnswer: (v) => typeof v === 'boolean',
+  promptPreset: (v) => typeof v === 'string' && ['custom', 'dsa', 'system-design', 'behavioral', 'hr', 'meeting'].includes(v),
+  codingLanguage: (v) => typeof v === 'string' && v.length <= 20 && /^[a-z+#-]+$/.test(v),
+  dsaMode: (v) => typeof v === 'boolean'
 }
 
 /** Returns the set of allowed settings keys */
@@ -132,7 +137,7 @@ function migrateSettings(s: Store<Record<string, unknown>>): void {
   const currentPrompt = s.get('systemPrompt') as string | undefined
   if (currentPrompt && STALE_DEFAULT_PROMPTS.includes(currentPrompt.trim())) {
     s.set('systemPrompt', DEFAULT_SYSTEM_PROMPT)
-    console.info('[Specter] Migrated system prompt to new default')
+    console.info('[Moirah] Migrated system prompt to new default')
   }
 }
 
@@ -144,6 +149,8 @@ const schema = {
   selectedModel: { type: 'string' as const, default: DEFAULT_SETTINGS.selectedModel },
   openaiApiKey: { type: 'string' as const, default: DEFAULT_SETTINGS.openaiApiKey },
   openaiModel: { type: 'string' as const, default: DEFAULT_SETTINGS.openaiModel },
+  geminiApiKey: { type: 'string' as const, default: DEFAULT_SETTINGS.geminiApiKey },
+  geminiModel: { type: 'string' as const, default: DEFAULT_SETTINGS.geminiModel },
   codexModel: { type: 'string' as const, default: DEFAULT_SETTINGS.codexModel },
   overlayOpacity: { type: 'number' as const, default: DEFAULT_SETTINGS.overlayOpacity, minimum: 0.3, maximum: 1.0 },
   overlayPosition: {
@@ -186,7 +193,10 @@ const schema = {
   jobDescription: { type: 'string' as const, default: DEFAULT_SETTINGS.jobDescription },
   resumeText: { type: 'string' as const, default: DEFAULT_SETTINGS.resumeText },
   interviewMode: { type: 'boolean' as const, default: DEFAULT_SETTINGS.interviewMode },
-  autoAnswer: { type: 'boolean' as const, default: DEFAULT_SETTINGS.autoAnswer }
+  autoAnswer: { type: 'boolean' as const, default: DEFAULT_SETTINGS.autoAnswer },
+  promptPreset: { type: 'string' as const, default: DEFAULT_SETTINGS.promptPreset },
+  codingLanguage: { type: 'string' as const, default: DEFAULT_SETTINGS.codingLanguage },
+  dsaMode: { type: 'boolean' as const, default: DEFAULT_SETTINGS.dsaMode }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -197,7 +207,7 @@ export function getStore(): Store<any> {
   if (!store) {
     try {
       store = new Store({
-        name: 'specter-settings',
+        name: 'moirah-settings',
         schema
         // NOTE: encryptionKey removed — it was a hardcoded string visible in source,
         // providing zero real security. Sensitive values (API keys) are now encrypted
@@ -207,16 +217,16 @@ export function getStore(): Store<any> {
     } catch (err) {
       // Config file is corrupted (e.g. leftover encrypted blob from a previous
       // encryptionKey-based store, or binary garbage). Delete it and retry.
-      console.warn('[Specter] Store config corrupted, resetting to defaults:', err)
+      console.warn('[Moirah] Store config corrupted, resetting to defaults:', err)
       const ElectronStore = Store as typeof Store & { new(opts: Record<string, unknown>): Store }
       // Create a temporary store just to get the file path, then delete the file
       try {
-        const tempStore = new ElectronStore({ name: 'specter-settings' })
+        const tempStore = new ElectronStore({ name: 'moirah-settings' })
         const configPath = tempStore.path
         const fs = require('fs')
         if (fs.existsSync(configPath)) {
           fs.unlinkSync(configPath)
-          console.warn(`[Specter] Deleted corrupted config: ${configPath}`)
+          console.warn(`[Moirah] Deleted corrupted config: ${configPath}`)
         }
       } catch {
         // If we can't even get the path, try to delete by known name
@@ -224,18 +234,18 @@ export function getStore(): Store<any> {
           const { app } = require('electron')
           const path = require('path')
           const fs = require('fs')
-          const configPath = path.join(app.getPath('userData'), 'specter-settings.json')
+          const configPath = path.join(app.getPath('userData'), 'moirah-settings.json')
           if (fs.existsSync(configPath)) {
             fs.unlinkSync(configPath)
-            console.warn(`[Specter] Deleted corrupted config (fallback): ${configPath}`)
+            console.warn(`[Moirah] Deleted corrupted config (fallback): ${configPath}`)
           }
         } catch (innerErr) {
-          console.error('[Specter] Failed to delete corrupted config:', innerErr)
+          console.error('[Moirah] Failed to delete corrupted config:', innerErr)
         }
       }
       // Now create a fresh store with defaults
       store = new Store({
-        name: 'specter-settings',
+        name: 'moirah-settings',
         schema
       })
     }
@@ -255,7 +265,7 @@ export function getSetting<T>(key: string): T {
 export function setSetting(key: string, value: unknown): void {
   // Validate before writing
   if (!isValidSetting(key, value)) {
-    console.warn(`[Specter] Rejected invalid setting: ${key}`)
+    console.warn(`[Moirah] Rejected invalid setting: ${key}`)
     return
   }
   // Encrypt sensitive keys on write
@@ -274,6 +284,8 @@ export function getAllSettings(): UserSettings {
     selectedModel: s.get('selectedModel') as string,
     openaiApiKey: decryptSensitive(s.get('openaiApiKey') as string),
     openaiModel: s.get('openaiModel') as string,
+    geminiApiKey: decryptSensitive(s.get('geminiApiKey') as string),
+    geminiModel: s.get('geminiModel') as string,
     codexModel: s.get('codexModel') as string,
     overlayOpacity: s.get('overlayOpacity') as number,
     overlayPosition: s.get('overlayPosition') as { x: number; y: number },
@@ -297,7 +309,10 @@ export function getAllSettings(): UserSettings {
     jobDescription: (s.get('jobDescription') as string) || '',
     resumeText: (s.get('resumeText') as string) || '',
     interviewMode: (s.get('interviewMode') as boolean) || false,
-    autoAnswer: (s.get('autoAnswer') as boolean) || false
+    autoAnswer: (s.get('autoAnswer') as boolean) || false,
+    promptPreset: (s.get('promptPreset') as UserSettings['promptPreset']) || 'custom',
+    codingLanguage: (s.get('codingLanguage') as string) || 'python',
+    dsaMode: (s.get('dsaMode') as boolean) || false
   }
 }
 

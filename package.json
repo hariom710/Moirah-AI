@@ -1,19 +1,19 @@
 {
-  "name": "specter-ai",
+  "name": "moirah-ai",
   "version": "1.5.0",
   "description": "Open-source AI screen & meeting copilot — invisible overlay powered by OpenRouter",
   "main": "./out/main/index.js",
-  "homepage": "https://github.com/umairinayat/Specter-AI",
+  "homepage": "https://github.com/moirah-ai/moirah-ai",
   "repository": {
     "type": "git",
-    "url": "https://github.com/umairinayat/Specter-AI.git"
+    "url": "https://github.com/moirah-ai/moirah-ai.git"
   },
   "bugs": {
-    "url": "https://github.com/umairinayat/Specter-AI/issues"
+    "url": "https://github.com/moirah-ai/moirah-ai/issues"
   },
   "author": {
-    "name": "Umair Inayat",
-    "email": "umairinayat975@gmail.com"
+    "name": "Moirah AI",
+    "url": "https://github.com/moirah-ai"
   },
   "license": "MIT",
   "scripts": {
@@ -29,13 +29,13 @@
     "build:mac": "npm run build && electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux",
     "build:all": "npm run build && electron-builder --win --mac --linux",
-    "build:docker": "docker build -t specter-ai:latest -f Dockerfile ."
+    "build:docker": "docker build -t moirah-ai:latest -f Dockerfile ."
   },
   "build": {
-    "appId": "com.specter.ai",
-    "productName": "Specter AI",
+    "appId": "com.moirah.ai",
+    "productName": "Moirah AI",
     "electronVersion": "34.3.1",
-    "copyright": "Copyright (c) 2026 Specter AI",
+    "copyright": "Copyright (c) 2026 Moirah AI",
     "directories": {
       "output": "dist",
       "buildResources": "build-resources"
@@ -70,7 +70,7 @@
       "signAndEditExecutable": false
     },
     "portable": {
-      "artifactName": "specter-portable.${ext}"
+      "artifactName": "moirah-portable.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -80,8 +80,8 @@
       "installerHeaderIcon": "build-resources/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Specter AI",
-      "artifactName": "specter-setup.${ext}"
+      "shortcutName": "Moirah AI",
+      "artifactName": "moirah-setup.${ext}"
     },
     "mac": {
       "target": [
@@ -102,17 +102,17 @@
       ],
       "icon": "build-resources/icon.png",
       "category": "public.app-category.productivity",
-      "artifactName": "specter-mac-${arch}.${ext}",
+      "artifactName": "moirah-mac-${arch}.${ext}",
       "hardenedRuntime": true,
       "entitlements": "build-resources/entitlements.mac.plist",
       "entitlementsInherit": "build-resources/entitlements.mac.plist",
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "Specter AI needs microphone access to transcribe meeting audio.",
-        "NSScreenCaptureUsageDescription": "Specter AI needs screen capture access to read on-screen content via OCR."
+        "NSMicrophoneUsageDescription": "Moirah AI needs microphone access to transcribe meeting audio.",
+        "NSScreenCaptureUsageDescription": "Moirah AI needs screen capture access to read on-screen content via OCR."
       }
     },
     "dmg": {
-      "artifactName": "specter-mac-${arch}.${ext}",
+      "artifactName": "moirah-mac-${arch}.${ext}",
       "title": "${productName} ${version}"
     },
     "linux": {
@@ -132,17 +132,17 @@
       ],
       "icon": "build-resources/icons",
       "category": "Utility",
-      "artifactName": "specter-linux-${arch}.${ext}",
+      "artifactName": "moirah-linux-${arch}.${ext}",
       "desktop": {
-        "Name": "Specter AI",
+        "Name": "Moirah AI",
         "Comment": "AI Screen & Meeting Copilot",
         "Categories": "Utility;Office;"
       }
     },
     "publish": {
       "provider": "github",
-      "owner": "umairinayat",
-      "repo": "Specter-AI"
+      "owner": "moirah-ai",
+      "repo": "Moirah-AI"
     }
   },
   "dependencies": {

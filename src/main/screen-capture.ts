@@ -245,7 +245,7 @@ function getActiveWindowBounds(): WindowBounds | null {
       }
     }
   } catch (err) {
-    console.warn('[Specter] Active window detection failed (will use full screen):', err)
+    console.warn('[Moirah] Active window detection failed (will use full screen):', err)
   }
 
   return null
@@ -275,13 +275,13 @@ function cropImageBuffer(
     cropH = Math.min(cropH, imgHeight - cropY)
 
     if (cropW < 50 || cropH < 50) {
-      console.warn('[Specter] Crop area too small, using full screenshot')
+      console.warn('[Moirah] Crop area too small, using full screenshot')
       return imgBuffer
     }
 
     return img.crop({ x: cropX, y: cropY, width: cropW, height: cropH }).toPNG()
   } catch (err) {
-    console.warn('[Specter] Image cropping failed, using full screenshot:', err)
+    console.warn('[Moirah] Image cropping failed, using full screenshot:', err)
     return imgBuffer
   }
 }
@@ -314,7 +314,7 @@ export async function captureScreenText(activeWindowOnly = false): Promise<Scree
   let activeWindowBounds: WindowBounds | null = null
   if (activeWindowOnly) {
     activeWindowBounds = getActiveWindowBounds()
-    if (activeWindowBounds?.title?.includes('Specter')) {
+    if (activeWindowBounds?.title?.includes('Moirah')) {
       activeWindowBounds = null
     }
   }
@@ -338,7 +338,7 @@ export async function captureScreenText(activeWindowOnly = false): Promise<Scree
     try {
       text = await ocrInWorker(imgBuffer)
     } catch (err) {
-      console.warn('[Specter] OCR failed (screenshot will still be sent):', err)
+      console.warn('[Moirah] OCR failed (screenshot will still be sent):', err)
     }
 
     return {

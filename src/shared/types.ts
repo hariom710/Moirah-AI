@@ -1,11 +1,13 @@
-// Shared type definitions for Specter AI
+// Shared type definitions for Moirah AI
 
 export interface UserSettings {
-  aiProvider: 'openrouter' | 'openai' | 'codex'
+  aiProvider: 'openrouter' | 'openai' | 'gemini' | 'codex'
   openrouterApiKey: string
   selectedModel: string
   openaiApiKey: string
   openaiModel: string
+  geminiApiKey: string
+  geminiModel: string
   codexModel: string
   overlayOpacity: number
   overlayPosition: { x: number; y: number }
@@ -39,6 +41,10 @@ export interface UserSettings {
   resumeText: string
   interviewMode: boolean
   autoAnswer: boolean
+  // Prompt presets + coding language (Phase 3)
+  promptPreset: 'custom' | 'dsa' | 'system-design' | 'behavioral' | 'hr' | 'meeting'
+  codingLanguage: string
+  dsaMode: boolean
 }
 
 export interface OpenRouterModel {

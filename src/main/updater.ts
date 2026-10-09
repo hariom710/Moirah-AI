@@ -37,7 +37,7 @@ export function initUpdater(): void {
 
   // Errors are non-fatal: log and retry on the next scheduled check
   autoUpdater.on('error', (err) => {
-    console.warn('[Specter] Update check/download failed:', err.message)
+    console.warn('[Moirah] Update check/download failed:', err.message)
   })
 
   ipcMain.on(IPC_CHANNELS.APP_INSTALL_UPDATE, () => {
@@ -46,7 +46,7 @@ export function initUpdater(): void {
 
   const check = (): void => {
     autoUpdater.checkForUpdates().catch((err: Error) => {
-      console.warn('[Specter] Update check failed:', err.message)
+      console.warn('[Moirah] Update check failed:', err.message)
     })
   }
 

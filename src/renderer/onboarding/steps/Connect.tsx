@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { ArrowRight, ArrowLeft, ExternalLink, Check, Loader2, Terminal, Mic } from 'lucide-react'
 import { detectApiKeyType } from '../../../shared/detect-key'
-import { OPENROUTER_KEYS_URL, OPENAI_API_KEYS_URL } from '../../../shared/constants'
+import { OPENROUTER_KEYS_URL, OPENAI_API_KEYS_URL, GEMINI_API_KEYS_URL } from '../../../shared/constants'
 import type { ProviderId } from '../App'
 
 interface Props {
@@ -9,6 +9,34 @@ interface Props {
   onProviderChange: (p: ProviderId) => void
   onNext: () => void
   onBack: () => void
+}
+
+const PROVIDER_LABELS: Record<ProviderId, string> = {
+  openrouter: 'OpenRouter',
+  openai: 'OpenAI',
+  gemini: 'Gemini',
+  codex: 'Codex'
+}
+
+const PROVIDER_KEY_URLS: Record<ProviderId, string> = {
+  openrouter: OPENROUTER_KEYS_URL,
+  openai: OPENAI_API_KEYS_URL,
+  gemini: GEMINI_API_KEYS_URL,
+  codex: ''
+}
+
+const PROVIDER_KEY_PLACEHOLDERS: Record<ProviderId, string> = {
+  openrouter: 'sk-or-v1-...',
+  openai: 'sk-proj-...',
+  gemini: 'AIza...',
+  codex: ''
+}
+
+const KEY_SETTINGS: Record<ProviderId, string> = {
+  openrouter: 'openrouterApiKey',
+  openai: 'openaiApiKey',
+  gemini: 'geminiApiKey',
+  codex: ''
 }
 
 export default function Connect({ provider, onProviderChange, onNext, onBack }: Props) {
@@ -40,6 +68,8 @@ function KeyConnect({ provider, onProviderChange, onNext, onBack }: Props) {
   const [confirmOverwrite, setConfirmOverwrite] = useState(false)
 
   const isRouter = provider === 'openrouter'
+  const isGemini = provider === 'gemini'
+  const label = PROVIDER_LABELS[provider]
 
   function onChange(value: string) {
     setKey(value)
@@ -48,7 +78,7 @@ function KeyConnect({ provider, onProviderChange, onNext, onBack }: Props) {
     const detected = detectApiKeyType(value)
     if (detected !== 'unknown' && detected !== provider) {
       onProviderChange(detected)
-      setNote(`That looks like ${detected === 'openrouter' ? 'an OpenRouter' : 'an OpenAI'} key — switched for you.`)
+      setNote(`That looks like a ${PROVIDER_LABELS[detected]} key — switched for you.`)
     } else {
       setNote(null)
     }
@@ -59,8 +89,16 @@ function KeyConnect({ provider, onProviderChange, onNext, onBack }: Props) {
     setError(null)
     try {
       if (isRouter) {
-        await window.specterAPI?.setSetting('openrouterApiKey', key.trim())
-        await window.specterAPI?.fetchModels()
+        await window.moirahAPI?.setSetting('openrouterApiKey', key.trim())
+        await window.moirahAPI?.fetchModels()
+      } else if (isGemini) {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models?pageSize=1&key=${encodeURIComponent(key.trim())}`
+        )
+        if (!res.ok) {
+          throw new Error(res.status === 400 || res.status === 403 ? 'Invalid Gemini API key.' : `Gemini error ${res.status}`)
+        }
+        await window.moirahAPI?.setSetting('geminiApiKey', key.trim())
       } else {
         const res = await fetch('https://api.openai.com/v1/models', {
           headers: { Authorization: `Bearer ${key.trim()}` }
@@ -68,15 +106,16 @@ function KeyConnect({ provider, onProviderChange, onNext, onBack }: Props) {
         if (!res.ok) {
           throw new Error(res.status === 401 ? 'Invalid OpenAI API key.' : `OpenAI error ${res.status}`)
         }
-        await window.specterAPI?.setSetting('openaiApiKey', key.trim())
+        await window.moirahAPI?.setSetting('openaiApiKey', key.trim())
       }
-      await window.specterAPI?.setSetting('aiProvider', provider)
+      await window.moirahAPI?.setSetting('aiProvider', provider)
       setValid(true)
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Validation failed'
       setError(msg)
-      // Remove a bad OpenRouter key so the app isn't left in a broken state
-      if (isRouter) await window.specterAPI?.setSetting('openrouterApiKey', '').catch(() => {})
+      // Remove a bad key so the app isn't left in a broken state
+      const settingKey = KEY_SETTINGS[provider]
+      if (settingKey) await window.moirahAPI?.setSetting(settingKey, '').catch(() => {})
     } finally {
       setValidating(false)
     }
@@ -86,8 +125,8 @@ function KeyConnect({ provider, onProviderChange, onNext, onBack }: Props) {
     if (!groqKey.trim()) return
     setGroqError(null)
     try {
-      await window.specterAPI?.setSetting('whisperProvider', 'groq')
-      await window.specterAPI?.setSetting('whisperApiKey', groqKey.trim())
+      await window.moirahAPI?.setSetting('whisperProvider', 'groq')
+      await window.moirahAPI?.setSetting('whisperApiKey', groqKey.trim())
       setGroqSaved(true)
     } catch (e: unknown) {
       setGroqError(e instanceof Error ? e.message : 'Failed to save key')
@@ -97,7 +136,7 @@ function KeyConnect({ provider, onProviderChange, onNext, onBack }: Props) {
   async function handleSaveGroq() {
     if (!groqKey.trim()) return
     if (!confirmOverwrite) {
-      const current = await window.specterAPI?.getSetting<'groq' | 'openai' | 'custom'>('whisperProvider')
+      const current = await window.moirahAPI?.getSetting<'groq' | 'openai' | 'custom'>('whisperProvider')
       if (current && current !== 'groq') {
         setConfirmOverwrite(true)
         setGroqError(null)
@@ -110,18 +149,18 @@ function KeyConnect({ provider, onProviderChange, onNext, onBack }: Props) {
 
   return (
     <>
-      <h2 className="text-lg font-semibold mb-1">Connect {isRouter ? 'OpenRouter' : 'OpenAI'}</h2>
+      <h2 className="text-lg font-semibold mb-1">Connect {label}</h2>
       <p className="text-xs text-white/40 mb-4">
         Paste your API key. It&apos;s stored encrypted on your machine — never uploaded anywhere.
       </p>
 
       <button
         onClick={() =>
-          window.specterAPI?.openExternal(isRouter ? OPENROUTER_KEYS_URL : OPENAI_API_KEYS_URL)
+          window.moirahAPI?.openExternal(PROVIDER_KEY_URLS[provider])
         }
         className="flex items-center gap-1.5 text-xs text-violet-300 hover:text-violet-200 mb-3"
       >
-        Get your key {isRouter ? '(openrouter.ai)' : '(platform.openai.com)'}
+        Get your key {isRouter ? '(openrouter.ai)' : isGemini ? '(aistudio.google.com)' : '(platform.openai.com)'}
         <ExternalLink className="w-3 h-3" />
       </button>
 
@@ -129,7 +168,7 @@ function KeyConnect({ provider, onProviderChange, onNext, onBack }: Props) {
         type="password"
         value={key}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={isRouter ? 'sk-or-v1-...' : 'sk-proj-...'}
+        placeholder={PROVIDER_KEY_PLACEHOLDERS[provider]}
         spellCheck={false}
         className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm font-mono
                    focus:outline-none focus:border-violet-500/60 placeholder:text-white/20"
@@ -234,19 +273,19 @@ function CodexConnect({ onNext, onBack }: { onNext: () => void; onBack: () => vo
   // Persist the provider only when the user continues with a detected CLI.
   // Persisting on mount strands users who go Back/close with an unusable provider.
   function handleContinue() {
-    window.specterAPI?.setSetting('aiProvider', 'codex').catch(() => {})
+    window.moirahAPI?.setSetting('aiProvider', 'codex').catch(() => {})
     onNext()
   }
 
   useEffect(() => {
-    window.specterAPI?.checkCodex().then(setStatus).catch(() => setStatus({ installed: false, loggedInHint: false }))
+    window.moirahAPI?.checkCodex().then(setStatus).catch(() => setStatus({ installed: false, loggedInHint: false }))
   }, [])
 
   return (
     <>
       <h2 className="text-lg font-semibold mb-1">Connect Codex</h2>
       <p className="text-xs text-white/40 mb-6">
-        Specter uses your local Codex CLI login — no API key needed.
+        Moirah uses your local Codex CLI login — no API key needed.
       </p>
 
       <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02]">

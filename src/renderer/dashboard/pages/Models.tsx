@@ -1,12 +1,12 @@
-// Models page — select AI model for OpenRouter, OpenAI API, or Codex Plan
+// Models page — select AI model for OpenRouter, Gemini, OpenAI API, or Codex Plan
 import { useState, useEffect, useCallback } from 'react'
 import {
   Cpu, Search, Check, DollarSign, Hash,
   Loader2, RefreshCw, Star, ChevronDown, ChevronUp
 } from 'lucide-react'
-import { DEFAULT_SETTINGS } from '../../../shared/constants'
+import { DEFAULT_SETTINGS, DEFAULT_GEMINI_MODELS } from '../../../shared/constants'
 
-type AiProvider = 'openrouter' | 'openai' | 'codex'
+type AiProvider = 'openrouter' | 'openai' | 'gemini' | 'codex'
 
 interface Model {
   id: string
@@ -18,6 +18,7 @@ interface Model {
 
 const PROVIDERS: Array<{ value: AiProvider; label: string; desc: string }> = [
   { value: 'openrouter', label: 'OpenRouter', desc: 'API key' },
+  { value: 'gemini', label: 'Gemini', desc: 'Free tier' },
   { value: 'openai', label: 'OpenAI API', desc: 'GPT credits' },
   { value: 'codex', label: 'Codex Plan', desc: 'ChatGPT login' }
 ]
@@ -30,6 +31,12 @@ const OPENROUTER_RECOMMENDED_MODELS = [
   'meta-llama/llama-3.3-70b-instruct',
   'meta-llama/llama-3.1-8b-instruct',
   'upstage/solar-pro-3:free'
+]
+
+const GEMINI_RECOMMENDED_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-pro',
+  'gemini-2.0-flash'
 ]
 
 const OPENAI_RECOMMENDED_MODELS = [
@@ -165,26 +172,32 @@ const CODEX_MODELS: Model[] = [
   }
 ]
 
-function modelSettingKey(provider: AiProvider): 'selectedModel' | 'openaiModel' | 'codexModel' {
+const GEMINI_MODELS: Model[] = DEFAULT_GEMINI_MODELS
+
+function modelSettingKey(provider: AiProvider): 'selectedModel' | 'openaiModel' | 'geminiModel' | 'codexModel' {
   if (provider === 'openai') return 'openaiModel'
+  if (provider === 'gemini') return 'geminiModel'
   if (provider === 'codex') return 'codexModel'
   return 'selectedModel'
 }
 
 function defaultModelFor(provider: AiProvider): string {
   if (provider === 'openai') return DEFAULT_SETTINGS.openaiModel
+  if (provider === 'gemini') return DEFAULT_SETTINGS.geminiModel
   if (provider === 'codex') return DEFAULT_SETTINGS.codexModel
   return DEFAULT_SETTINGS.selectedModel
 }
 
 function modelsFor(provider: AiProvider, fetchedModels: Model[]): Model[] {
   if (provider === 'openai') return OPENAI_MODELS
+  if (provider === 'gemini') return GEMINI_MODELS
   if (provider === 'codex') return CODEX_MODELS
   return fetchedModels.length > 0 ? fetchedModels : OPENROUTER_DEFAULT_MODELS
 }
 
 function recommendedFor(provider: AiProvider): string[] {
   if (provider === 'openai') return OPENAI_RECOMMENDED_MODELS
+  if (provider === 'gemini') return GEMINI_RECOMMENDED_MODELS
   if (provider === 'codex') return CODEX_RECOMMENDED_MODELS
   return OPENROUTER_RECOMMENDED_MODELS
 }
@@ -215,9 +228,9 @@ export default function Models() {
 
   const loadCurrentModel = useCallback(async () => {
     try {
-      const provider = await window.specterAPI.getSetting<AiProvider>('aiProvider') || 'openrouter'
+      const provider = await window.moirahAPI.getSetting<AiProvider>('aiProvider') || 'openrouter'
       const key = modelSettingKey(provider)
-      const model = await window.specterAPI.getSetting<string>(key)
+      const model = await window.moirahAPI.getSetting<string>(key)
       setAiProvider(provider)
       setSelectedModel(model || defaultModelFor(provider))
     } catch (err) {
@@ -236,9 +249,9 @@ export default function Models() {
     setSearchQuery('')
     setModels([])
     try {
-      await window.specterAPI.setSetting('aiProvider', provider)
+      await window.moirahAPI.setSetting('aiProvider', provider)
       const key = modelSettingKey(provider)
-      const model = await window.specterAPI.getSetting<string>(key)
+      const model = await window.moirahAPI.getSetting<string>(key)
       setAiProvider(provider)
       setSelectedModel(model || defaultModelFor(provider))
     } catch (err) {
@@ -253,7 +266,7 @@ export default function Models() {
     setLoading(true)
     setError(null)
     try {
-      const fetched = await window.specterAPI.fetchModels()
+      const fetched = await window.moirahAPI.fetchModels()
       setModels(fetched)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch models. Check your API key.')
@@ -265,7 +278,7 @@ export default function Models() {
   const handleSelectModel = useCallback(async (modelId: string) => {
     setSaving(true)
     try {
-      await window.specterAPI.setSetting(modelSettingKey(aiProvider), modelId)
+      await window.moirahAPI.setSetting(modelSettingKey(aiProvider), modelId)
       setSelectedModel(modelId)
     } catch (err) {
       console.error('Failed to save model:', err)

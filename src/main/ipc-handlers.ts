@@ -4,8 +4,10 @@ import { IPC_CHANNELS } from '../shared/ipc-channels'
 import { getSetting, setSetting, getAllSettings, getConversations, saveConversation, deleteConversation, clearConversations, isValidSetting } from '../services/store'
 import { streamCompletion, cancelStream, fetchAvailableModels, estimateCost, getCachedModels, type ChatMessage } from '../services/openrouter'
 import { streamOpenAICompletion, cancelOpenAIStream } from '../services/openai-api'
+import { streamGeminiCompletion, cancelGeminiStream } from '../services/gemini-api'
 import { streamCodexCompletion, cancelCodexStream } from '../services/codex'
 import { buildSystemPrompt, buildUserMessage, estimateTokens } from '../services/context-builder'
+import { presetBody, type PresetId } from '../services/presets'
 import { captureScreenText, captureScreenOnly, ocrInWorker } from './screen-capture'
 import { transcribeAudio, getTranscript, checkWhisperConfig, clearTranscript } from './audio-capture'
 import { createDashboardWindow } from './dashboard-window'
@@ -64,7 +66,7 @@ function startAutoCapture(intervalSec: number): void {
         }
       }
     } catch (err: unknown) {
-      console.warn('[Specter] Auto-capture failed:', err)
+      console.warn('[Moirah] Auto-capture failed:', err)
     }
   }, clampedInterval * 1000)
 }
@@ -102,7 +104,7 @@ function checkRateLimit(channel: string): boolean {
   limiter.timestamps = limiter.timestamps.filter(t => now - t < limiter.windowMs)
 
   if (limiter.timestamps.length >= limiter.maxCalls) {
-    console.warn(`[Specter] Rate limit exceeded for ${channel}`)
+    console.warn(`[Moirah] Rate limit exceeded for ${channel}`)
     return false
   }
 
@@ -121,6 +123,12 @@ const OPENAI_MODEL_PRICING: Record<string, { prompt: string; completion: string 
   'gpt-5.4-mini': { prompt: '0.00000075', completion: '0.0000045' },
   'gpt-5.4-nano': { prompt: '0.0000002', completion: '0.00000125' },
   'chat-latest': { prompt: '0.000005', completion: '0.00003' }
+}
+
+const GEMINI_MODEL_PRICING: Record<string, { prompt: string; completion: string }> = {
+  'gemini-2.5-flash': { prompt: '0.0000003', completion: '0.0000025' },
+  'gemini-2.5-pro': { prompt: '0.00000125', completion: '0.00001' },
+  'gemini-2.0-flash': { prompt: '0.0000001', completion: '0.0000004' }
 }
 
 function isValidQuery(query: unknown): query is string {
@@ -245,9 +253,10 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
       attachedScreenshot = args.screenshot.replace(/\s+/g, '')
     }
 
-    const aiProvider = getSetting<'openrouter' | 'openai' | 'codex'>('aiProvider') || DEFAULT_SETTINGS.aiProvider
+    const aiProvider = getSetting<'openrouter' | 'openai' | 'gemini' | 'codex'>('aiProvider') || DEFAULT_SETTINGS.aiProvider
     const openrouterApiKey = getSetting<string>('openrouterApiKey')
     const openaiApiKey = getSetting<string>('openaiApiKey')
+    const geminiApiKey = getSetting<string>('geminiApiKey')
     if (aiProvider === 'openrouter' && !openrouterApiKey) {
       sendError('No API key configured. Open Settings to add your OpenRouter API key.')
       return
@@ -256,11 +265,17 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
       sendError('No OpenAI API key configured. Open Settings to add your OpenAI API key.')
       return
     }
+    if (aiProvider === 'gemini' && !geminiApiKey) {
+      sendError('No Gemini API key configured. Open Settings to add your Gemini API key.')
+      return
+    }
 
     const model = aiProvider === 'codex'
       ? getSetting<string>('codexModel') || DEFAULT_SETTINGS.codexModel
       : aiProvider === 'openai'
         ? getSetting<string>('openaiModel') || DEFAULT_SETTINGS.openaiModel
+        : aiProvider === 'gemini'
+          ? getSetting<string>('geminiModel') || DEFAULT_SETTINGS.geminiModel
       : getSetting<string>('selectedModel') || DEFAULT_SETTINGS.selectedModel
     const systemPrompt = getSetting<string>('systemPrompt')
 
@@ -275,7 +290,7 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
       try {
         screenText = await ocrInWorker(Buffer.from(attachedScreenshot, 'base64'))
       } catch (err: unknown) {
-        console.warn('[Specter] OCR of attached screenshot failed:', err instanceof Error ? err.message : err)
+        console.warn('[Moirah] OCR of attached screenshot failed:', err instanceof Error ? err.message : err)
       }
     } else if (args.includeScreen) {
       // Capture screen if requested — surface failures so the overlay can show them
@@ -297,7 +312,7 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Screen capture failed'
-        console.warn('[Specter] Screen capture failed:', message)
+        console.warn('[Moirah] Screen capture failed:', message)
         // Fall back to recent auto-capture text before giving up on screen context.
         if (lastAutoScreenText && Date.now() - lastAutoScreenTextAt < AUTO_CAPTURE_FRESH_MS) {
           screenText = lastAutoScreenText
@@ -333,10 +348,11 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
     const resumeText = (getSetting<string>('resumeText') || '').slice(0, 20000)
     const hasInterviewProfile = interviewMode && !!(interviewCompany || interviewRole || jobDescription || resumeText)
 
-    // Only OpenRouter (vision-capable models) and direct OpenAI receive image bytes.
-    // Codex is text-only: the prompt builder then tells the model to rely on OCR text.
+    // Only OpenRouter (vision-capable models), direct OpenAI, and Gemini receive
+    // image bytes. Codex is text-only: the prompt builder then tells the model to rely on OCR text.
     const imageAttached = !!screenshot && (
       aiProvider === 'openai' ||
+      aiProvider === 'gemini' ||
       (aiProvider === 'openrouter' && modelSupportsVision(model))
     )
 
@@ -357,7 +373,14 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
       ? `${playbookContext}\n\n${userMessage}`
       : userMessage
 
-    // Build messages array: system prompt (+ interview grounding) + history + new message
+    // Prompt preset + coding language (DSA mode forces the DSA preset)
+    const promptPreset = getSetting<PresetId>('promptPreset') || 'custom'
+    const codingLanguage = getSetting<string>('codingLanguage') || 'python'
+    const dsaMode = getSetting<boolean>('dsaMode') || false
+    const effectivePreset: PresetId = dsaMode && promptPreset === 'custom' ? 'dsa' : promptPreset
+    const extraPrompt = presetBody(effectivePreset, codingLanguage)
+
+    // Build messages array: system prompt (+ preset + interview grounding) + history + new message
     const messages: ChatMessage[] = [
       {
         role: 'system',
@@ -367,7 +390,7 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
           jobDescription,
           resumeText,
           interviewMode: hasInterviewProfile
-        })
+        }, extraPrompt)
       }
     ]
 
@@ -407,12 +430,14 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
       onDone: () => {
         const completionTokens = estimateTokens(completionContent)
         const totalTokens = promptTokens + completionTokens
-        const modelLabel = aiProvider === 'codex' ? `codex/${model}` : aiProvider === 'openai' ? `openai/${model}` : model
+        const modelLabel = aiProvider === 'codex' ? `codex/${model}` : aiProvider === 'openai' ? `openai/${model}` : aiProvider === 'gemini' ? `gemini/${model}` : model
         const modelInfo = aiProvider === 'openrouter'
           ? DEFAULT_MODELS.find(m => m.id === model) || getCachedModels().find(m => m.id === model)
           : aiProvider === 'openai'
             ? { pricing: OPENAI_MODEL_PRICING[model] }
-            : undefined
+            : aiProvider === 'gemini'
+              ? { pricing: GEMINI_MODEL_PRICING[model] }
+              : undefined
         const promptPrice = modelInfo?.pricing?.prompt || '0'
         const completionPrice = modelInfo?.pricing?.completion || '0'
         const totalCost = aiProvider === 'codex'
@@ -440,6 +465,8 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
       await streamCodexCompletion(textOnlyMessages, model, streamCallbacks)
     } else if (aiProvider === 'openai') {
       await streamOpenAICompletion(textOnlyMessages, model, openaiApiKey, streamCallbacks, 1500, imageAttached ? screenshot : undefined)
+    } else if (aiProvider === 'gemini') {
+      await streamGeminiCompletion(textOnlyMessages, model, geminiApiKey, streamCallbacks, 1500, imageAttached ? screenshot : undefined)
     } else {
       await streamCompletion(messages, model, openrouterApiKey, streamCallbacks)
     }
@@ -449,6 +476,7 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
   ipcMain.on(IPC_CHANNELS.AI_CANCEL, () => {
     cancelStream()
     cancelOpenAIStream()
+    cancelGeminiStream()
     cancelCodexStream()
   })
 
@@ -577,7 +605,7 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
 
   ipcMain.on(IPC_CHANNELS.CONVERSATIONS_DELETE, (_event, id: unknown) => {
     if (!isValidConversationId(id)) {
-      console.warn('[Specter] Invalid conversation ID for delete:', id)
+      console.warn('[Moirah] Invalid conversation ID for delete:', id)
       return
     }
     deleteConversation(id)

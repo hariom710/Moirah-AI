@@ -27,7 +27,7 @@ describe('parseCodexVersionOutput', () => {
 
 describe('checkCommandInstalled', () => {
   it('resolves with installed=false for a nonexistent command', async () => {
-    const status = await checkCommandInstalled('specter-definitely-not-a-real-cmd-xyz')
+    const status = await checkCommandInstalled('moirah-definitely-not-a-real-cmd-xyz')
     expect(status.installed).toBe(false)
     expect(typeof status.loggedInHint).toBe('boolean')
   }, 15000)

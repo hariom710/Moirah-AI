@@ -21,7 +21,7 @@ export default function Playbooks() {
 
   const loadPlaybooks = async () => {
     try {
-      const saved = await window.specterAPI.getSetting<Playbook[]>('playbooks')
+      const saved = await window.moirahAPI.getSetting<Playbook[]>('playbooks')
       setPlaybooks(saved || [])
     } catch (err) {
       console.error('Failed to load playbooks:', err)
@@ -29,7 +29,7 @@ export default function Playbooks() {
   }
 
   const savePlaybooks = useCallback(async (updated: Playbook[]) => {
-    await window.specterAPI.setSetting('playbooks', updated)
+    await window.moirahAPI.setSetting('playbooks', updated)
     setPlaybooks(updated)
   }, [])
 

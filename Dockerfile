@@ -1,11 +1,11 @@
 # ─────────────────────────────────────────────────────────────
-# Specter AI — Linux CI Build Environment
+# Moirah AI — Linux CI Build Environment
 # Builds AppImage + deb packages inside Docker for reproducible
 # cross-platform builds without needing a Linux host machine.
 #
 # Usage:
-#   docker build -t specter-ai:latest -f Dockerfile .
-#   docker run --rm -v "$(pwd)/dist:/app/dist" specter-ai:latest
+#   docker build -t moirah-ai:latest -f Dockerfile .
+#   docker run --rm -v "$(pwd)/dist:/app/dist" moirah-ai:latest
 #
 # Output: dist/*.AppImage, dist/*.deb
 # ─────────────────────────────────────────────────────────────
@@ -44,5 +44,5 @@ RUN npx electron-builder --linux --publish never
 
 # The dist/ folder now contains the built packages.
 # Mount a volume at /app/dist to extract them:
-#   docker run --rm -v "$(pwd)/dist:/output" specter-ai:latest cp -r /app/dist/. /output/
+#   docker run --rm -v "$(pwd)/dist:/output" moirah-ai:latest cp -r /app/dist/. /output/
 CMD ["echo", "Build complete. Artifacts in /app/dist/"]

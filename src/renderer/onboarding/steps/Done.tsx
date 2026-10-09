@@ -31,7 +31,7 @@ export default function Done({ onFinish }: Props) {
   const [rows, setRows] = useState<HotkeyRow[]>(() => buildRows(DEFAULT_HOTKEYS))
 
   useEffect(() => {
-    window.specterAPI?.getSetting<typeof DEFAULT_HOTKEYS>('hotkeys').then((h) => {
+    window.moirahAPI?.getSetting<typeof DEFAULT_HOTKEYS>('hotkeys').then((h) => {
       if (h && typeof h.askAI === 'string') setRows(buildRows({ ...DEFAULT_HOTKEYS, ...h }))
     }).catch(() => {})
   }, [])
@@ -75,7 +75,7 @@ export default function Done({ onFinish }: Props) {
         className="mt-6 w-full px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500
                    text-sm font-medium transition-colors"
       >
-        Start using Specter
+        Start using Moirah
       </button>
     </div>
   )

@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Specter AI are documented in this file.
+All notable changes to Moirah AI are documented in this file.
 
 ## [1.5.0] - 2026-09-22
 
@@ -17,7 +17,7 @@ All notable changes to Specter AI are documented in this file.
 - Auto-update: silent background checks against GitHub Releases every 6 hours, with an overlay restart toast (confirms before restarting during active recording)
 - Download website (/site): OS auto-detecting download button (incl. Apple Silicon via User-Agent Client Hints), mobile routing, install walkthroughs, FAQ. Deploys via GitHub Actions (site.yml) with Pages enablement
 - Windows CI code-signing support via WINDOWS_CSC_LINK / WINDOWS_CSC_KEY_PASSWORD secrets (unsigned path unchanged when secrets absent)
-- Stable, version-less release artifact names: specter-setup.exe, specter-portable.exe, specter-mac-{arch}.zip, specter-linux-{arch}.AppImage/.deb — permanent download links
+- Stable, version-less release artifact names: moirah-setup.exe, moirah-portable.exe, moirah-mac-{arch}.zip, moirah-linux-{arch}.AppImage/.deb — permanent download links
 - Codex CLI detection util and API-key provider detection util, unit tested
 - Vitest test infrastructure; tests run in CI alongside typecheck
 

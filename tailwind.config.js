@@ -4,7 +4,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        specter: {
+        moirah: {
           violet: '#7C3AED',
           'violet-light': '#8B5CF6',
           'violet-dark': '#6D28D9',

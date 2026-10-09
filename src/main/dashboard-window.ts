@@ -16,7 +16,7 @@ export function createDashboardWindow(): BrowserWindow {
     height: 700,
     minWidth: 700,
     minHeight: 500,
-    title: 'Specter AI — Settings',
+    title: 'Moirah AI — Settings',
     frame: true,
     resizable: true,
     webPreferences: {
@@ -43,7 +43,7 @@ export function createDashboardWindow(): BrowserWindow {
     if (is.dev && process.env['ELECTRON_RENDERER_URL'] && url.startsWith(process.env['ELECTRON_RENDERER_URL'])) {
       return
     }
-    console.warn('[Specter] Blocked dashboard navigation to:', url)
+    console.warn('[Moirah] Blocked dashboard navigation to:', url)
     event.preventDefault()
   })
 

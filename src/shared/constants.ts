@@ -1,7 +1,7 @@
-// App-wide constants for Specter AI
+// App-wide constants for Moirah AI
 
-export const APP_NAME = 'Specter AI'
-export const APP_ID = 'com.specter.ai'
+export const APP_NAME = 'Moirah AI'
+export const APP_ID = 'com.moirah.ai'
 export const APP_VERSION = '1.5.0'
 
 export const ACCENT_COLOR = '#7C3AED' // violet
@@ -95,12 +95,39 @@ export const DEFAULT_MODELS = [
   }
 ]
 
+// Curated Gemini models (direct Google AI Studio API). All support vision.
+export const DEFAULT_GEMINI_MODELS = [
+  {
+    id: 'gemini-2.5-flash',
+    name: 'Gemini 2.5 Flash (Recommended - Fast)',
+    pricing: { prompt: '0.0000003', completion: '0.0000025' },
+    context_length: 1048576,
+    description: 'Ultra-fast, cheap, great vision — ideal for real-time use'
+  },
+  {
+    id: 'gemini-2.5-pro',
+    name: 'Gemini 2.5 Pro (Deep Reasoning)',
+    pricing: { prompt: '0.00000125', completion: '0.00001' },
+    context_length: 1048576,
+    description: 'Best for complex DSA, system design, and multi-step reasoning'
+  },
+  {
+    id: 'gemini-2.0-flash',
+    name: 'Gemini 2.0 Flash (Budget)',
+    pricing: { prompt: '0.0000001', completion: '0.0000004' },
+    context_length: 1048576,
+    description: 'Cheapest option, still fast with vision'
+  }
+]
+
 export const DEFAULT_SETTINGS = {
-  aiProvider: 'openrouter' as 'openrouter' | 'openai' | 'codex',
+  aiProvider: 'openrouter' as 'openrouter' | 'openai' | 'gemini' | 'codex',
   openrouterApiKey: '',
   selectedModel: 'google/gemini-3-flash-preview',
   openaiApiKey: '',
   openaiModel: 'gpt-5.5',
+  geminiApiKey: '',
+  geminiModel: 'gemini-2.5-flash',
   codexModel: 'gpt-5.4',
   overlayOpacity: 0.85,
   overlayPosition: { x: -1, y: -1 }, // -1 means auto-position
@@ -127,17 +154,24 @@ export const DEFAULT_SETTINGS = {
   jobDescription: '',
   resumeText: '',
   interviewMode: false,
-  autoAnswer: false
+  autoAnswer: false,
+  // Prompt presets + coding language
+  promptPreset: 'custom' as 'custom' | 'dsa' | 'system-design' | 'behavioral' | 'hr' | 'meeting',
+  codingLanguage: 'python',
+  dsaMode: false
 }
 
 export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 export const OPENROUTER_KEYS_URL = 'https://openrouter.ai/keys'
-export const OPENROUTER_REFERER = 'https://github.com/umairinayat/Specter-AI'
-export const OPENROUTER_TITLE = 'Specter AI'
+export const OPENROUTER_REFERER = 'https://github.com/moirah-ai/moirah-ai'
+export const OPENROUTER_TITLE = 'Moirah AI'
 
 export const OPENAI_API_BASE_URL = 'https://api.openai.com/v1'
 export const OPENAI_API_KEYS_URL = 'https://platform.openai.com/api-keys'
 export const OPENAI_API_PRICING_URL = 'https://developers.openai.com/api/docs/pricing'
+
+export const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
+export const GEMINI_API_KEYS_URL = 'https://aistudio.google.com/apikey'
 
 export const CHATGPT_CODEX_URL = 'https://chatgpt.com/codex'
 export const CHATGPT_PRICING_URL = 'https://chatgpt.com/pricing'

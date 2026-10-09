@@ -1,4 +1,4 @@
-import { Globe, KeyRound, Terminal, ArrowRight } from 'lucide-react'
+import { Globe, KeyRound, Terminal, ArrowRight, Sparkles } from 'lucide-react'
 import type { ProviderId } from '../App'
 
 interface Props {
@@ -20,6 +20,13 @@ const PROVIDERS: Array<{
     desc: 'Access 500+ models (GPT, Claude, Gemini, Llama) with one key. Free models available.',
     badge: 'Recommended',
     icon: Globe
+  },
+  {
+    id: 'gemini',
+    title: 'Google Gemini',
+    desc: 'Free-tier friendly key from Google AI Studio. Fast with strong vision for screenshots.',
+    badge: 'Free tier',
+    icon: Sparkles
   },
   {
     id: 'openai',

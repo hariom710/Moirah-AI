@@ -2,8 +2,10 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   Briefcase, Building2, FileText, Upload, X, Save, Loader2,
-  ToggleRight, ToggleLeft, Mic, Sparkles, Trash2, AlertCircle, CheckCircle
+  ToggleRight, ToggleLeft, Mic, Sparkles, Trash2, AlertCircle, CheckCircle,
+  Code2, Languages
 } from 'lucide-react'
+import { PRESETS, CODING_LANGUAGES, type PresetId } from '../../../services/presets'
 
 interface InterviewState {
   interviewCompany: string
@@ -12,6 +14,9 @@ interface InterviewState {
   resumeText: string
   interviewMode: boolean
   autoAnswer: boolean
+  promptPreset: PresetId
+  codingLanguage: string
+  dsaMode: boolean
 }
 
 const DEFAULT_STATE: InterviewState = {
@@ -20,7 +25,10 @@ const DEFAULT_STATE: InterviewState = {
   jobDescription: '',
   resumeText: '',
   interviewMode: false,
-  autoAnswer: false
+  autoAnswer: false,
+  promptPreset: 'custom',
+  codingLanguage: 'python',
+  dsaMode: false
 }
 
 /** Extract keywords (words 5+ chars, lowercased, de-duped) for JD↔CV match preview */
@@ -54,14 +62,17 @@ export default function Interview() {
 
   const loadInterview = async () => {
     try {
-      const api = window.specterAPI
-      const [company, role, jd, resume, mode, auto] = await Promise.all([
+      const api = window.moirahAPI
+      const [company, role, jd, resume, mode, auto, preset, lang, dsa] = await Promise.all([
         api.getSetting<string>('interviewCompany').catch(() => ''),
         api.getSetting<string>('interviewRole').catch(() => ''),
         api.getSetting<string>('jobDescription').catch(() => ''),
         api.getSetting<string>('resumeText').catch(() => ''),
         api.getSetting<boolean>('interviewMode').catch(() => false),
-        api.getSetting<boolean>('autoAnswer').catch(() => false)
+        api.getSetting<boolean>('autoAnswer').catch(() => false),
+        api.getSetting<PresetId>('promptPreset').catch(() => 'custom' as PresetId),
+        api.getSetting<string>('codingLanguage').catch(() => 'python'),
+        api.getSetting<boolean>('dsaMode').catch(() => false)
       ])
       setState({
         interviewCompany: company || '',
@@ -69,7 +80,10 @@ export default function Interview() {
         jobDescription: jd || '',
         resumeText: resume || '',
         interviewMode: !!mode,
-        autoAnswer: !!auto
+        autoAnswer: !!auto,
+        promptPreset: (preset || 'custom') as PresetId,
+        codingLanguage: lang || 'python',
+        dsaMode: !!dsa
       })
     } catch (err) {
       console.error('Failed to load interview profile:', err)
@@ -84,13 +98,16 @@ export default function Interview() {
     setSaving(true)
     setError(null)
     try {
-      const api = window.specterAPI
+      const api = window.moirahAPI
       await api.setSetting('interviewCompany', state.interviewCompany.slice(0, 500))
       await api.setSetting('interviewRole', state.interviewRole.slice(0, 500))
       await api.setSetting('jobDescription', state.jobDescription.slice(0, 20000))
       await api.setSetting('resumeText', state.resumeText.slice(0, 20000))
       await api.setSetting('interviewMode', state.interviewMode)
       await api.setSetting('autoAnswer', state.autoAnswer)
+      await api.setSetting('promptPreset', state.promptPreset)
+      await api.setSetting('codingLanguage', state.codingLanguage)
+      await api.setSetting('dsaMode', state.dsaMode)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
@@ -103,13 +120,16 @@ export default function Interview() {
   const handleClear = useCallback(async () => {
     setState(DEFAULT_STATE)
     try {
-      const api = window.specterAPI
+      const api = window.moirahAPI
       await api.setSetting('interviewCompany', '')
       await api.setSetting('interviewRole', '')
       await api.setSetting('jobDescription', '')
       await api.setSetting('resumeText', '')
       await api.setSetting('interviewMode', false)
       await api.setSetting('autoAnswer', false)
+      await api.setSetting('promptPreset', 'custom')
+      await api.setSetting('codingLanguage', 'python')
+      await api.setSetting('dsaMode', false)
     } catch (err) {
       console.error('Failed to clear interview profile:', err)
     }
@@ -238,6 +258,65 @@ export default function Interview() {
                        focus:outline-none transition-colors"
           />
         </div>
+      </div>
+
+      {/* Answer style — preset + DSA mode + coding language */}
+      <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Code2 className="w-4 h-4 text-violet-400" />
+          <h3 className="text-sm font-medium text-white/70">Answer Style</h3>
+          <span className="text-[10px] text-white/25 ml-auto">applies to every AI answer</span>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[220px]">
+            <label className="text-xs text-white/50 block mb-1.5">Prompt preset</label>
+            <select
+              value={state.promptPreset}
+              onChange={(e) => update('promptPreset', e.target.value as PresetId)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm
+                         text-white/90 focus:border-violet-500/40 focus:outline-none"
+            >
+              {PRESETS.map(p => (
+                <option key={p.id} value={p.id}>{p.label} — {p.desc.split('.')[0]}</option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={() => update('dsaMode', !state.dsaMode)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-colors"
+            style={state.dsaMode
+              ? { background: 'rgba(124,58,237,0.2)', color: '#c4b5fd', border: '1px solid rgba(124,58,237,0.3)' }
+              : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}
+            title="Forces the DSA/Coding preset regardless of the dropdown"
+          >
+            {state.dsaMode ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+            DSA Mode {state.dsaMode ? 'ON' : 'OFF'}
+          </button>
+        </div>
+
+        {(state.dsaMode || state.promptPreset === 'dsa') && (
+          <div className="flex items-center gap-2.5">
+            <Languages className="w-4 h-4 text-violet-400 shrink-0" />
+            <div className="flex-1">
+              <label className="text-xs text-white/50 block mb-1.5">Coding language</label>
+              <select
+                value={state.codingLanguage}
+                onChange={(e) => update('codingLanguage', e.target.value)}
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm
+                           text-white/90 focus:border-violet-500/40 focus:outline-none font-mono"
+              >
+                {CODING_LANGUAGES.map(l => (
+                  <option key={l.id} value={l.id}>{l.label}</option>
+                ))}
+              </select>
+            </div>
+            <p className="text-[11px] text-white/30 max-w-[280px] hidden sm:block">
+              Coding answers arrive as approach → {state.codingLanguage} code → complexity → edge cases.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Job Description */}

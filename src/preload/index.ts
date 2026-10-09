@@ -27,7 +27,7 @@ export interface AIQueryOptions {
   screenshot?: string
 }
 
-export interface SpecterAPI {
+export interface MoirahAPI {
   // AI
   queryAI: (query: string, includeScreen: boolean, includeAudio: boolean, messageHistory?: Array<{ role: string; content: string }>, options?: AIQueryOptions) => void
   cancelAI: () => void
@@ -130,7 +130,7 @@ function isAudioStatus(v: unknown): v is { isRecording: boolean; duration: numbe
   return typeof s.isRecording === 'boolean' && typeof s.duration === 'number'
 }
 
-const api: SpecterAPI = {
+const api: MoirahAPI = {
   // AI
   queryAI: (query, includeScreen, includeAudio, messageHistory, options) => {
     if (typeof query !== 'string') return
@@ -324,4 +324,4 @@ const api: SpecterAPI = {
   }
 }
 
-contextBridge.exposeInMainWorld('specterAPI', api)
+contextBridge.exposeInMainWorld('moirahAPI', api)

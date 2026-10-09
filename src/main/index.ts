@@ -1,4 +1,4 @@
-// Specter AI — Main process entry point
+// Moirah AI — Main process entry point
 import { app, BrowserWindow, shell } from 'electron'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { createOverlayWindow, getOverlayWindow, showOverlay } from './overlay-window'
@@ -11,10 +11,10 @@ import { getSetting } from '../services/store'
 
 // Catch unhandled errors globally — prevents crash from spawn ENOENT (e.g. missing sox)
 process.on('uncaughtException', (err) => {
-  console.error('[Specter] Uncaught exception:', err.message)
+  console.error('[Moirah] Uncaught exception:', err.message)
   // Don't crash the app for non-fatal spawn errors
   if (err.message.includes('ENOENT') || err.message.includes('spawn')) {
-    console.error('[Specter] A required system binary is missing. Audio features may be unavailable.')
+    console.error('[Moirah] A required system binary is missing. Audio features may be unavailable.')
     return
   }
   // For truly fatal errors, still exit
@@ -34,7 +34,7 @@ if (process.platform === 'win32') {
 
 app.whenReady().then(() => {
   // Set app user model id for Windows
-  electronApp.setAppUserModelId('com.specter.ai')
+  electronApp.setAppUserModelId('com.moirah.ai')
 
   // Watch for shortcut events in dev
   app.on('browser-window-created', (_, window) => {
@@ -49,7 +49,7 @@ app.whenReady().then(() => {
       if (is.dev && process.env['ELECTRON_RENDERER_URL'] && url.startsWith(process.env['ELECTRON_RENDERER_URL'])) {
         return
       }
-      console.warn('[Specter] Global policy blocked navigation to:', url)
+      console.warn('[Moirah] Global policy blocked navigation to:', url)
       event.preventDefault()
     })
 

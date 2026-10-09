@@ -1,4 +1,4 @@
-// System tray for Specter AI
+// System tray for Moirah AI
 import { Tray, Menu, nativeImage, app } from 'electron'
 import path from 'path'
 import { toggleOverlay, showOverlay, hideOverlay } from './overlay-window'
@@ -22,7 +22,7 @@ export function createTray(): Tray {
   }
 
   tray = new Tray(icon)
-  tray.setToolTip('Specter AI — AI Meeting Copilot')
+  tray.setToolTip('Moirah AI — AI Meeting Copilot')
 
   const contextMenu = Menu.buildFromTemplate([
     {
@@ -49,7 +49,7 @@ export function createTray(): Tray {
     },
     { type: 'separator' },
     {
-      label: 'Quit Specter AI',
+      label: 'Quit Moirah AI',
       click: () => {
         app.quit()
       }

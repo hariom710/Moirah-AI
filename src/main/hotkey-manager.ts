@@ -1,4 +1,4 @@
-// Global hotkey registration for Specter AI
+// Global hotkey registration for Moirah AI
 import { globalShortcut, BrowserWindow } from 'electron'
 import { IPC_CHANNELS } from '../shared/ipc-channels'
 import { getSetting } from '../services/store'
@@ -27,7 +27,7 @@ function applyHotkeys(): void {
       }
     })
   } catch (e) {
-    console.warn('[Specter] Failed to register askAI hotkey:', e)
+    console.warn('[Moirah] Failed to register askAI hotkey:', e)
   }
 
   // Ctrl/Cmd + Shift + Enter: Ask AI with screenshot
@@ -40,7 +40,7 @@ function applyHotkeys(): void {
       }
     })
   } catch (e) {
-    console.warn('[Specter] Failed to register screenshotAsk hotkey:', e)
+    console.warn('[Moirah] Failed to register screenshotAsk hotkey:', e)
   }
 
   // Ctrl/Cmd + \: Toggle overlay visibility
@@ -49,7 +49,7 @@ function applyHotkeys(): void {
       toggleOverlay()
     })
   } catch (e) {
-    console.warn('[Specter] Failed to register toggleOverlay hotkey:', e)
+    console.warn('[Moirah] Failed to register toggleOverlay hotkey:', e)
   }
 
   // Ctrl/Cmd + Shift + Space: Toggle audio recording
@@ -61,7 +61,7 @@ function applyHotkeys(): void {
       }
     })
   } catch (e) {
-    console.warn('[Specter] Failed to register toggleAudio hotkey:', e)
+    console.warn('[Moirah] Failed to register toggleAudio hotkey:', e)
   }
 }
 

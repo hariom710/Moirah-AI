@@ -21,7 +21,7 @@ function buildPrompt(messages: Array<{ role: 'user' | 'assistant' | 'system'; co
     .join('\n\n')
 
   return [
-    'You are running inside Specter AI as a real-time meeting, screen, and interview copilot.',
+    'You are running inside Moirah AI as a real-time meeting, screen, and interview copilot.',
     'Answer the latest user request directly and concisely. Do not edit files or run commands unless the user explicitly asks for coding changes.',
     system ? `\nSYSTEM INSTRUCTIONS:\n${system}` : '',
     conversation ? `\nCONVERSATION:\n${conversation}` : '',

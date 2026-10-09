@@ -6,7 +6,7 @@ interface Props {
   onBack: () => void
 }
 
-const EXPECTED_PHRASE = 'Specter is ready to help.'
+const EXPECTED_PHRASE = 'Moirah is ready to help.'
 
 function newRequestId(): string {
   try {
@@ -28,7 +28,7 @@ export default function TestStep({ onNext, onBack }: Props) {
   const outputRef = useRef('')
 
   useEffect(() => {
-    const api = window.specterAPI
+    const api = window.moirahAPI
     if (!api) return
 
     const unsubChunk = api.onStreamChunk((data) => {
@@ -54,7 +54,7 @@ export default function TestStep({ onNext, onBack }: Props) {
     })
 
     return () => {
-      window.specterAPI?.cancelAI()
+      window.moirahAPI?.cancelAI()
       unsubChunk()
       unsubDone()
       unsubError()
@@ -62,7 +62,7 @@ export default function TestStep({ onNext, onBack }: Props) {
   }, [])
 
   function runTest() {
-    window.specterAPI?.cancelAI()
+    window.moirahAPI?.cancelAI()
     const requestId = newRequestId()
     requestIdRef.current = requestId
     outputRef.current = ''
@@ -70,8 +70,8 @@ export default function TestStep({ onNext, onBack }: Props) {
     setOutput('')
     setError(null)
     setPhraseMismatch(false)
-    window.specterAPI?.queryAI(
-      'This is a setup test. Reply with exactly: Specter is ready to help.',
+    window.moirahAPI?.queryAI(
+      'This is a setup test. Reply with exactly: Moirah is ready to help.',
       false,
       false,
       [],
@@ -128,7 +128,7 @@ export default function TestStep({ onNext, onBack }: Props) {
           status === 'running' ? (
             <button
               onClick={() => {
-                window.specterAPI?.cancelAI()
+                window.moirahAPI?.cancelAI()
                 setStatus('idle')
               }}
               className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl

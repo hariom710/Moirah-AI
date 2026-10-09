@@ -136,12 +136,15 @@ function withTruncationNote(excerpt: string): string {
   return `[NOTE: showing the most relevant excerpts — the full document is longer.]\n${excerpt}`
 }
 
-export function buildSystemPrompt(customPrompt?: string, interview?: InterviewProfile): string {
+export function buildSystemPrompt(customPrompt?: string, interview?: InterviewProfile, extraBody?: string): string {
   const base = customPrompt || DEFAULT_SYSTEM_PROMPT
+  const extras = (extraBody || '').trim()
 
-  if (!interview?.interviewMode) return `${base}\n\n${IMMUTABLE_POLICY}`
+  if (!interview?.interviewMode) {
+    return extras ? `${base}\n\n${extras}\n\n${IMMUTABLE_POLICY}` : `${base}\n\n${IMMUTABLE_POLICY}`
+  }
   if (!interview.jobDescription && !interview.resumeText && !interview.company && !interview.role) {
-    return `${base}\n\n${IMMUTABLE_POLICY}`
+    return extras ? `${base}\n\n${extras}\n\n${IMMUTABLE_POLICY}` : `${base}\n\n${IMMUTABLE_POLICY}`
   }
 
   const lines: string[] = []
@@ -169,7 +172,7 @@ export function buildSystemPrompt(customPrompt?: string, interview?: InterviewPr
     '- Never reveal you are an AI assistant unless directly asked.'
   )
 
-  return `${lines.join('\n')}\n\n${base}\n\n${IMMUTABLE_POLICY}`
+  return `${lines.join('\n')}\n\n${base}${extras ? `\n\n${extras}` : ''}\n\n${IMMUTABLE_POLICY}`
 }
 
 export function buildUserMessage(ctx: ContextSnapshot): string {

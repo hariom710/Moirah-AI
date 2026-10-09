@@ -22,6 +22,14 @@ describe('detectApiKeyType', () => {
     expect(detectApiKeyType('  sk-or-v1-xyz  ')).toBe('openrouter')
   })
 
+  it('detects Gemini keys by AIza prefix', () => {
+    expect(detectApiKeyType('AIza' + 'a'.repeat(33))).toBe('gemini')
+  })
+
+  it('does not misclassify short AIza fragments as Gemini', () => {
+    expect(detectApiKeyType('AIza-short')).toBe('unknown')
+  })
+
   it('returns unknown for garbage input', () => {
     expect(detectApiKeyType('hello world')).toBe('unknown')
     expect(detectApiKeyType('')).toBe('unknown')

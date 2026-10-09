@@ -1,4 +1,4 @@
-// Dashboard App — Settings and configuration UI for Specter AI
+// Dashboard App — Settings and configuration UI for Moirah AI
 import { useState, useEffect } from 'react'
 import { Settings as SettingsIcon, Cpu, BookOpen, MessageSquare, Ghost, Zap, Briefcase } from 'lucide-react'
 import { APP_VERSION } from '../../shared/constants'
@@ -10,7 +10,7 @@ import InterviewPage from './pages/Interview'
 
 declare global {
   interface Window {
-    specterAPI: import('../../preload/index').SpecterAPI
+    moirahAPI: import('../../preload/index').MoirahAPI
   }
 }
 
@@ -29,13 +29,13 @@ export default function App() {
 
   // Load and apply theme from settings
   useEffect(() => {
-    window.specterAPI?.getSetting<'dark' | 'light' | 'glass'>('theme').then((t) => {
+    window.moirahAPI?.getSetting<'dark' | 'light' | 'glass'>('theme').then((t) => {
       document.documentElement.setAttribute('data-theme', t || 'dark')
     })
   }, [])
 
   return (
-    <div className="flex h-screen" style={{ background: 'var(--specter-bg-deeper)', color: 'var(--specter-text)' }}>
+    <div className="flex h-screen" style={{ background: 'var(--moirah-bg-deeper)', color: 'var(--moirah-text)' }}>
       {/* Sidebar */}
       <nav className="dashboard-sidebar w-56 flex flex-col shrink-0">
         {/* Logo area */}
@@ -45,7 +45,7 @@ export default function App() {
               <Ghost className="w-4 h-4 text-violet-400" />
             </div>
             <div>
-              <h1 className="text-sm font-semibold text-white/90">Specter AI</h1>
+              <h1 className="text-sm font-semibold text-white/90">Moirah AI</h1>
               <p className="text-[10px] text-white/30">Settings & Config</p>
             </div>
           </div>

@@ -54,7 +54,7 @@ export function createOnboardingWindow(): BrowserWindow {
     height: 560,
     minWidth: 680,
     minHeight: 560,
-    title: 'Specter AI — Welcome',
+    title: 'Moirah AI — Welcome',
     frame: true,
     resizable: false,
     center: true,
@@ -90,7 +90,7 @@ export function createOnboardingWindow(): BrowserWindow {
     if (is.dev && process.env['ELECTRON_RENDERER_URL'] && url.startsWith(process.env['ELECTRON_RENDERER_URL'])) {
       return
     }
-    console.warn('[Specter] Blocked onboarding navigation to:', url)
+    console.warn('[Moirah] Blocked onboarding navigation to:', url)
     event.preventDefault()
   })
 

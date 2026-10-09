@@ -4,13 +4,15 @@ import {
   Key, Eye, EyeOff, Keyboard, Monitor, Sliders, MessageSquare,
   Save, RotateCcw, CheckCircle, AlertCircle, Loader2, Mic, Code2, ExternalLink
 } from 'lucide-react'
-import { OPENAI_API_KEYS_URL, OPENAI_API_PRICING_URL, OPENROUTER_KEYS_URL } from '../../../shared/constants'
+import { OPENAI_API_KEYS_URL, OPENAI_API_PRICING_URL, OPENROUTER_KEYS_URL, GEMINI_API_KEYS_URL } from '../../../shared/constants'
 
 interface SettingsState {
-  aiProvider: 'openrouter' | 'openai' | 'codex'
+  aiProvider: 'openrouter' | 'openai' | 'gemini' | 'codex'
   openrouterApiKey: string
   openaiApiKey: string
   openaiModel: string
+  geminiApiKey: string
+  geminiModel: string
   codexModel: string
   overlayOpacity: number
   autoCapture: boolean
@@ -39,6 +41,8 @@ const DEFAULT_STATE: SettingsState = {
   openrouterApiKey: '',
   openaiApiKey: '',
   openaiModel: 'gpt-5.5',
+  geminiApiKey: '',
+  geminiModel: 'gemini-2.5-flash',
   codexModel: 'gpt-5.4',
   overlayOpacity: 0.85,
   autoCapture: false,
@@ -65,6 +69,7 @@ export default function Settings() {
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_STATE)
   const [showApiKey, setShowApiKey] = useState(false)
   const [showOpenAIKey, setShowOpenAIKey] = useState(false)
+  const [showGeminiKey, setShowGeminiKey] = useState(false)
   const [showWhisperKey, setShowWhisperKey] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -83,12 +88,14 @@ export default function Settings() {
 
   const loadSettings = async () => {
     try {
-      const all = await window.specterAPI.getAllSettings() as unknown as SettingsState
+      const all = await window.moirahAPI.getAllSettings() as unknown as SettingsState
       setSettings({
         aiProvider: all.aiProvider || 'openrouter',
         openrouterApiKey: all.openrouterApiKey || '',
         openaiApiKey: all.openaiApiKey || '',
         openaiModel: all.openaiModel || 'gpt-5.5',
+        geminiApiKey: all.geminiApiKey || '',
+        geminiModel: all.geminiModel || 'gemini-2.5-flash',
         codexModel: all.codexModel || 'gpt-5.4',
         overlayOpacity: all.overlayOpacity || 0.85,
         autoCapture: all.autoCapture || false,
@@ -114,11 +121,13 @@ export default function Settings() {
     setSaving(true)
     setError(null)
     try {
-      const api = window.specterAPI
+      const api = window.moirahAPI
       await api.setSetting('aiProvider', settings.aiProvider)
       await api.setSetting('openrouterApiKey', settings.openrouterApiKey)
       await api.setSetting('openaiApiKey', settings.openaiApiKey)
       await api.setSetting('openaiModel', settings.openaiModel)
+      await api.setSetting('geminiApiKey', settings.geminiApiKey)
+      await api.setSetting('geminiModel', settings.geminiModel)
       await api.setSetting('codexModel', settings.codexModel)
       await api.setSetting('overlayOpacity', settings.overlayOpacity)
       await api.setSetting('autoCapture', settings.autoCapture)
@@ -149,8 +158,8 @@ export default function Settings() {
     setKeyValid(null)
     try {
       // Save the key first so fetchModels can use it
-      await window.specterAPI.setSetting('openrouterApiKey', settings.openrouterApiKey)
-      const models = await window.specterAPI.fetchModels()
+      await window.moirahAPI.setSetting('openrouterApiKey', settings.openrouterApiKey)
+      const models = await window.moirahAPI.fetchModels()
       setKeyValid(models.length > 0)
     } catch {
       setKeyValid(false)
@@ -164,7 +173,7 @@ export default function Settings() {
   }, [])
 
   const openExternal = useCallback((url: string) => {
-    window.specterAPI.openExternal(url)
+    window.moirahAPI.openExternal(url)
   }, [])
 
   const updateSetting = <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => {
@@ -243,7 +252,7 @@ export default function Settings() {
     <div className="space-y-8 animate-fade-in">
       <div>
         <h2 className="text-xl font-semibold text-white/90">Settings</h2>
-        <p className="text-sm text-white/40 mt-1">Configure your Specter AI experience</p>
+        <p className="text-sm text-white/40 mt-1">Configure your Moirah AI experience</p>
       </div>
 
       {/* AI Backend */}
@@ -255,6 +264,7 @@ export default function Settings() {
         <div className="flex gap-2">
           {([
             { value: 'openrouter', label: 'OpenRouter', desc: 'API key' },
+            { value: 'gemini', label: 'Gemini', desc: 'Free tier' },
             { value: 'openai', label: 'OpenAI API', desc: 'GPT credits' },
             { value: 'codex', label: 'Codex Plan', desc: 'ChatGPT login' }
           ] as const).map((provider) => (
@@ -337,6 +347,65 @@ export default function Settings() {
                 <ExternalLink className="w-3 h-3" />
               </button>
             </p>
+          </div>
+        </section>
+      )}
+
+      {settings.aiProvider === 'gemini' && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 text-white/60">
+            <Key className="w-4 h-4 text-violet-400" />
+            <h3 className="text-sm font-medium">Google Gemini API</h3>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm text-white/50 block mb-2">Gemini API Key</label>
+              <div className="relative">
+                <input
+                  type={showGeminiKey ? 'text' : 'password'}
+                  value={settings.geminiApiKey}
+                  onChange={(e) => updateSetting('geminiApiKey', e.target.value)}
+                  placeholder="AIza..."
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm
+                             text-white/90 placeholder-white/20 focus:border-violet-500/40
+                             focus:outline-none transition-colors"
+                />
+                <button
+                  onClick={() => setShowGeminiKey(!showGeminiKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60"
+                >
+                  {showGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-white/20 text-xs mt-1.5">
+                Get a free key from{' '}
+                <button
+                  type="button"
+                  onClick={() => openExternal(GEMINI_API_KEYS_URL)}
+                  className="inline-flex items-center gap-1 text-violet-400/60 hover:text-violet-300 transition-colors"
+                >
+                  aistudio.google.com/apikey
+                  <ExternalLink className="w-3 h-3" />
+                </button>
+              </p>
+            </div>
+
+            <div>
+              <label className="text-sm text-white/50 block mb-2">Gemini Model</label>
+              <select
+                value={settings.geminiModel}
+                onChange={(e) => updateSetting('geminiModel', e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm
+                           text-white/90 focus:border-violet-500/40 focus:outline-none"
+              >
+                <option value="gemini-2.5-flash">gemini-2.5-flash — fast, cheap, vision</option>
+                <option value="gemini-2.5-pro">gemini-2.5-pro — deep reasoning</option>
+                <option value="gemini-2.0-flash">gemini-2.0-flash — cheapest</option>
+              </select>
+              <p className="text-white/20 text-xs mt-1.5">
+                All Gemini models support screenshot vision. Free-tier keys have generous limits.
+              </p>
+            </div>
           </div>
         </section>
       )}

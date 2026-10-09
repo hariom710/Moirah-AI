@@ -1,4 +1,4 @@
-// Overlay App — main overlay UI component for Specter AI
+// Overlay App — main overlay UI component for Moirah AI
 import { useState, useEffect, useRef, useCallback } from 'react'
 import ResponseCard from './ResponseCard'
 import TranscriptBar from './TranscriptBar'
@@ -11,7 +11,7 @@ import { extractLastQuestion } from '../../services/context-builder'
 
 declare global {
   interface Window {
-    specterAPI: import('../../preload/index').SpecterAPI
+    moirahAPI: import('../../preload/index').MoirahAPI
   }
 }
 
@@ -125,24 +125,24 @@ export default function App() {
 
   // Load theme and selected model from settings
   useEffect(() => {
-    window.specterAPI?.getSetting<'dark' | 'light' | 'glass'>('theme').then((t) => {
+    window.moirahAPI?.getSetting<'dark' | 'light' | 'glass'>('theme').then((t) => {
       const resolved = t || 'dark'
       setTheme(resolved)
       document.documentElement.setAttribute('data-theme', resolved)
     })
-    window.specterAPI?.getSetting<string>('selectedModel').then((m) => {
+    window.moirahAPI?.getSetting<string>('selectedModel').then((m) => {
       if (m) setSelectedModel(m)
     })
-    window.specterAPI?.getSetting<number>('autoHideDelay').then((d) => {
+    window.moirahAPI?.getSetting<number>('autoHideDelay').then((d) => {
       if (typeof d === 'number' && d >= 0) setAutoHideDelay(d)
     })
     // Interview profile — drives voice auto-answer grounding indicator
     const loadInterview = () => {
-      window.specterAPI?.getSetting<boolean>('autoAnswer').then((v) => setAutoAnswer(!!v)).catch(() => {})
-      window.specterAPI?.getSetting<boolean>('interviewMode').then((v) => setInterviewMode(!!v)).catch(() => {})
+      window.moirahAPI?.getSetting<boolean>('autoAnswer').then((v) => setAutoAnswer(!!v)).catch(() => {})
+      window.moirahAPI?.getSetting<boolean>('interviewMode').then((v) => setInterviewMode(!!v)).catch(() => {})
       Promise.all([
-        window.specterAPI?.getSetting<string>('interviewRole').catch(() => ''),
-        window.specterAPI?.getSetting<string>('interviewCompany').catch(() => '')
+        window.moirahAPI?.getSetting<string>('interviewRole').catch(() => ''),
+        window.moirahAPI?.getSetting<string>('interviewCompany').catch(() => '')
       ]).then(([role, company]) => {
         const label = [role, company].filter(Boolean).join(' at ')
         setInterviewLabel(label || '')
@@ -164,7 +164,7 @@ export default function App() {
   // SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE) to be silently ignored.
   // Instead, the main process sends opacity values via IPC and we apply them via CSS.
   useEffect(() => {
-    const api = window.specterAPI
+    const api = window.moirahAPI
     if (!api?.onOpacityChange) return
 
     const unsub = api.onOpacityChange((opacity) => {
@@ -218,7 +218,7 @@ export default function App() {
     const firstUserMsg = messages.find(m => m.role === 'user')
     const title = firstUserMsg?.content.slice(0, 80) || 'Untitled conversation'
 
-    window.specterAPI?.saveConversation({
+    window.moirahAPI?.saveConversation({
       id: conversationIdRef.current,
       title,
       messages: messages.map(m => ({
@@ -248,7 +248,7 @@ export default function App() {
 
     try {
       const arrayBuffer = await blob.arrayBuffer()
-      const text = await window.specterAPI?.sendAudioForTranscription(
+      const text = await window.moirahAPI?.sendAudioForTranscription(
         arrayBuffer,
         mimeTypeRef.current || 'audio/webm'
       )
@@ -287,7 +287,7 @@ export default function App() {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Transcription failed'
-      console.warn('[Specter] Transcription error:', msg)
+      console.warn('[Moirah] Transcription error:', msg)
       // Show ALL transcription errors to the user
       setAudioError(msg)
     }
@@ -312,16 +312,16 @@ export default function App() {
     }
 
     recorder.onerror = (event) => {
-      console.error('[Specter] MediaRecorder error:', event)
+      console.error('[Moirah] MediaRecorder error:', event)
       // Attempt to recover by creating a new recorder if stream is still active
       if (audioStreamRef.current && audioStreamRef.current.active) {
         try {
           const newRecorder = createRecorder(audioStreamRef.current)
           newRecorder.start()
           mediaRecorderRef.current = newRecorder
-          console.log('[Specter] MediaRecorder recovered after error')
+          console.log('[Moirah] MediaRecorder recovered after error')
         } catch {
-          console.error('[Specter] MediaRecorder recovery failed, stopping')
+          console.error('[Moirah] MediaRecorder recovery failed, stopping')
           setAudioError('Microphone recording error. Try stopping and restarting.')
           // Manually clean up instead of calling stopRecording (avoids circular ref)
           if (audioStreamRef.current) {
@@ -350,8 +350,8 @@ export default function App() {
     // A new recording session starts with a clean transcript — previous
     // sessions must never leak into new answers.
     setTranscript('')
-    window.specterAPI?.clearTranscript()
-    window.specterAPI?.getSetting<number>('maxTranscriptLength').then((limit) => {
+    window.moirahAPI?.clearTranscript()
+    window.moirahAPI?.getSetting<number>('maxTranscriptLength').then((limit) => {
       if (typeof limit === 'number' && limit >= 100 && limit <= 100000) {
         transcriptLimitRef.current = Math.floor(limit)
       }
@@ -359,7 +359,7 @@ export default function App() {
 
     // Check whisper config before starting — give immediate feedback
     try {
-      const config = await window.specterAPI?.checkAudioConfig()
+      const config = await window.moirahAPI?.checkAudioConfig()
       if (config && !config.configured) {
         setAudioError(config.error || 'Audio transcription not configured. Add a Whisper API key in Settings.')
         return
@@ -392,7 +392,7 @@ export default function App() {
       transcriptionTimerRef.current = setInterval(() => {
         // Check if the audio stream is still active
         if (!audioStreamRef.current || !audioStreamRef.current.active) {
-          console.warn('[Specter] Audio stream lost, stopping recording')
+          console.warn('[Moirah] Audio stream lost, stopping recording')
           setAudioError('Microphone disconnected. Recording stopped.')
           stopRecordingRef.current()
           return
@@ -406,7 +406,7 @@ export default function App() {
             newRecorder.start()
             mediaRecorderRef.current = newRecorder
           } catch (err) {
-            console.error('[Specter] Failed to cycle MediaRecorder:', err)
+            console.error('[Moirah] Failed to cycle MediaRecorder:', err)
             setAudioError('Recording error. Restarting...')
             stopRecordingRef.current()
           }
@@ -415,7 +415,7 @@ export default function App() {
 
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to access microphone'
-      console.error('[Specter] Mic access error:', msg)
+      console.error('[Moirah] Mic access error:', msg)
       setAudioError(
         msg.includes('NotAllowed') || msg.includes('Permission')
           ? 'Microphone access denied. Allow microphone access in your system settings.'
@@ -500,7 +500,7 @@ export default function App() {
     const requestId = newRequestId()
     activeRequestIdRef.current = requestId
     const screenshot = attachedScreenshotRef.current ?? undefined
-    window.specterAPI?.queryAI(
+    window.moirahAPI?.queryAI(
       userMessage.content,
       useScreen,
       isRecordingRef.current,
@@ -542,7 +542,7 @@ export default function App() {
     // Always include screen for analyze
     const requestId = newRequestId()
     activeRequestIdRef.current = requestId
-    window.specterAPI?.queryAI(
+    window.moirahAPI?.queryAI(
       userMessage.content,
       true, // always include screen
       isRecordingRef.current,
@@ -597,7 +597,7 @@ export default function App() {
       '- Follow system prompt rules strictly (concise answers, MCQ format, coding format, etc.).'
     ].join('\n')
 
-    window.specterAPI?.queryAI(
+    window.moirahAPI?.queryAI(
       framedQuery,
       true, // include screen — so AI sees what the interviewer is showing
       false, // audio transcript is already in the query
@@ -647,7 +647,7 @@ export default function App() {
       '- Keep it speakable: concise, no meta-commentary, follow system prompt format rules.'
     ].filter(Boolean).join('\n')
 
-    window.specterAPI?.queryAI(
+    window.moirahAPI?.queryAI(
       framedQuery,
       true, // include screen — on-screen code/MCQ may accompany the spoken question
       true, // include rolling transcript for extra conversational context
@@ -668,7 +668,7 @@ export default function App() {
     if (isCapturing) return
     setIsCapturing(true)
     try {
-      const result = await window.specterAPI?.captureScreenPreview()
+      const result = await window.moirahAPI?.captureScreenPreview()
       if (result?.screenshot) {
         setAttachedScreenshot(result.screenshot)
         setIncludeScreen(true) // auto-enable screen context
@@ -690,7 +690,7 @@ export default function App() {
   }, [startRecording, stopRecording])
 
   const cancelStream = useCallback(() => {
-    window.specterAPI?.cancelAI()
+    window.moirahAPI?.cancelAI()
     setIsStreaming(false)
     setStreamingContent('')
     pendingCostRef.current = null
@@ -703,7 +703,7 @@ export default function App() {
     setAudioError(null)
     setTranscript('')
     // Drop the rolling transcript too — a new chat must not inherit old speech.
-    window.specterAPI?.clearTranscript()
+    window.moirahAPI?.clearTranscript()
     conversationIdRef.current = `conv-${Date.now()}`
   }, [])
 
@@ -714,13 +714,13 @@ export default function App() {
     setShowHistory(true)
     setHistoryLoading(true)
     try {
-      const saved = await window.specterAPI?.listConversations()
+      const saved = await window.moirahAPI?.listConversations()
       // Sort by most recent first
       const sorted = (saved || [])
         .sort((a: { updatedAt: number }, b: { updatedAt: number }) => b.updatedAt - a.updatedAt) as Conversation[]
       setHistoryList(sorted)
     } catch (err) {
-      console.error('[Specter] Failed to load conversations:', err)
+      console.error('[Moirah] Failed to load conversations:', err)
       setHistoryList([])
     } finally {
       setHistoryLoading(false)
@@ -753,7 +753,7 @@ export default function App() {
    */
   const deleteFromHistory = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    window.specterAPI?.deleteConversation(id)
+    window.moirahAPI?.deleteConversation(id)
     setHistoryList(prev => prev.filter(c => c.id !== id))
   }, [])
 
@@ -775,7 +775,7 @@ export default function App() {
 
   // Set up IPC listeners — stable callbacks via refs, no stale closures
   useEffect(() => {
-    const api = window.specterAPI
+    const api = window.moirahAPI
     if (!api) return
 
     const unsubChunk = api.onStreamChunk((data) => {
@@ -894,19 +894,19 @@ export default function App() {
       <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2">
         <button
           onClick={() => setIsMinimized(false)}
-          className="specter-pill group flex items-center gap-2 px-4 py-2 rounded-full
-                     bg-specter-dark/90 border border-violet-500/30
+          className="moirah-pill group flex items-center gap-2 px-4 py-2 rounded-full
+                     bg-moirah-dark/90 border border-violet-500/30
                      hover:border-violet-500/60 transition-all duration-300"
         >
           <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
-          <span className="text-white/80 text-sm font-medium">Specter</span>
+          <span className="text-white/80 text-sm font-medium">Moirah</span>
           <Maximize2 className="w-3 h-3 text-white/50 group-hover:text-white/80 transition-colors" />
         </button>
         <button
-          onClick={() => window.specterAPI?.quit()}
-          className="p-2 rounded-full bg-specter-dark/90 border border-white/10
+          onClick={() => window.moirahAPI?.quit()}
+          className="p-2 rounded-full bg-moirah-dark/90 border border-white/10
                      hover:border-red-500/40 hover:bg-red-500/10 transition-all duration-300"
-          title="Quit Specter"
+          title="Quit Moirah"
         >
           <Power className="w-3.5 h-3.5 text-white/40 hover:text-red-400" />
         </button>
@@ -920,8 +920,8 @@ export default function App() {
       className="h-screen w-full flex flex-col rounded-2xl overflow-hidden"
       style={{
         WebkitAppRegion: 'no-drag',
-        background: 'var(--specter-surface)',
-        borderColor: 'var(--specter-border)',
+        background: 'var(--moirah-surface)',
+        borderColor: 'var(--moirah-border)',
         borderWidth: '1px',
         borderStyle: 'solid'
       } as React.CSSProperties}
@@ -931,13 +931,13 @@ export default function App() {
       {/* Title bar — draggable */}
       <div
         className="flex items-center justify-between px-4 py-2 cursor-move select-none"
-        style={{ WebkitAppRegion: 'drag', borderBottom: '1px solid var(--specter-border)' } as React.CSSProperties}
+        style={{ WebkitAppRegion: 'drag', borderBottom: '1px solid var(--moirah-border)' } as React.CSSProperties}
       >
         <div className="flex items-center gap-2">
           <GripVertical className="w-3.5 h-3.5 text-white/30" />
           <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
           <span className="text-white/60 text-xs font-medium tracking-wider uppercase">
-            Specter AI
+            Moirah AI
           </span>
         </div>
         <div className="flex items-center gap-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
@@ -958,7 +958,7 @@ export default function App() {
             </button>
           )}
           <button
-            onClick={() => window.specterAPI?.openDashboard()}
+            onClick={() => window.moirahAPI?.openDashboard()}
             className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
             title="Settings"
           >
@@ -972,9 +972,9 @@ export default function App() {
             <Minimize2 className="w-3.5 h-3.5 text-white/40 hover:text-white/70" />
           </button>
           <button
-            onClick={() => window.specterAPI?.quit()}
+            onClick={() => window.moirahAPI?.quit()}
             className="p-1.5 rounded-lg hover:bg-red-500/20 transition-colors"
-            title="Quit Specter"
+            title="Quit Moirah"
           >
             <Power className="w-3.5 h-3.5 text-white/40 hover:text-red-400" />
           </button>
@@ -1012,7 +1012,7 @@ export default function App() {
             onClick={() => {
               const next = !autoAnswer
               setAutoAnswer(next)
-              window.specterAPI?.setSetting('autoAnswer', next).catch(() => {})
+              window.moirahAPI?.setSetting('autoAnswer', next).catch(() => {})
             }}
             className="text-[10px] text-white/30 hover:text-white/60 underline underline-offset-2 shrink-0"
             title="Toggle voice auto-answer"
@@ -1024,9 +1024,9 @@ export default function App() {
 
       {/* History drawer — slides over the messages area */}
       {showHistory && (
-        <div className="flex-1 overflow-y-auto flex flex-col" style={{ background: 'var(--specter-surface)' }}>
+        <div className="flex-1 overflow-y-auto flex flex-col" style={{ background: 'var(--moirah-surface)' }}>
           {/* History header */}
-          <div className="flex items-center gap-2 px-4 py-2.5" style={{ borderBottom: '1px solid var(--specter-border)' }}>
+          <div className="flex items-center gap-2 px-4 py-2.5" style={{ borderBottom: '1px solid var(--moirah-border)' }}>
             <button
               onClick={() => setShowHistory(false)}
               className="p-1 rounded-lg hover:bg-white/10 transition-colors"
@@ -1115,7 +1115,7 @@ export default function App() {
           </div>
 
           {/* New conversation button */}
-          <div className="px-3 pb-3 pt-1" style={{ borderTop: '1px solid var(--specter-border)' }}>
+          <div className="px-3 pb-3 pt-1" style={{ borderTop: '1px solid var(--moirah-border)' }}>
             <button
               onClick={() => { clearChat(); setShowHistory(false) }}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl
@@ -1330,7 +1330,7 @@ export default function App() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={includeScreen ? 'Ask about your screen...' : 'Ask Specter anything...'}
+            placeholder={includeScreen ? 'Ask about your screen...' : 'Ask Moirah anything...'}
             rows={1}
             className="flex-1 bg-transparent text-white/90 text-sm placeholder-white/20
                        resize-none outline-none min-h-[28px] max-h-[120px] py-1

@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Specter_AI-7C3AED?style=for-the-badge&logoColor=white" alt="Specter AI" height="40" />
+  <img src="https://img.shields.io/badge/Moirah_AI-7C3AED?style=for-the-badge&logoColor=white" alt="Moirah AI" height="40" />
 </p>
 
-<h1 align="center">Specter AI</h1>
+<h1 align="center">Moirah AI</h1>
 
 <p align="center">
   <strong>The AI copilot no one else can see.</strong>
@@ -23,7 +23,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/license/umairinayat/Specter-AI?style=flat-square" alt="License" />
+  <img src="https://img.shields.io/github/license/moirah-ai/Moirah-AI?style=flat-square" alt="License" />
   <img src="https://img.shields.io/badge/electron-33+-47848F?style=flat-square&logo=electron" alt="Electron" />
   <img src="https://img.shields.io/badge/react-18-61DAFB?style=flat-square&logo=react" alt="React" />
   <img src="https://img.shields.io/badge/typescript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
@@ -32,9 +32,9 @@
 
 ---
 
-## What is Specter AI?
+## What is Moirah AI?
 
-Specter AI is a desktop application that overlays AI-powered assistance on your screen during meetings, interviews, and work sessions. The overlay is **invisible to screen-sharing software** (Zoom, Google Meet, Teams), so only you can see it.
+Moirah AI is a desktop application that overlays AI-powered assistance on your screen during meetings, interviews, and work sessions. The overlay is **invisible to screen-sharing software** (Zoom, Google Meet, Teams), so only you can see it.
 
 - Reads your screen via OCR and transcribes meeting audio in real time
 - Sends context to any AI model on OpenRouter (500+ models including GPT-4, Claude, Gemini, Llama, DeepSeek)
@@ -92,7 +92,7 @@ Think of it as a free, open-source, privacy-first alternative to Cluely.
 
 ### Download Pre-Built Binaries
 
-Download the latest release for your platform from the [Releases](https://github.com/umairinayat/Specter-AI/releases) page:
+Download the latest release for your platform from the [Releases](https://github.com/moirah-ai/moirah-ai/releases) page:
 
 | Platform | Format |
 |---|---|
@@ -106,8 +106,8 @@ Download the latest release for your platform from the [Releases](https://github
 
 ```bash
 # Clone the repository
-git clone https://github.com/umairinayat/Specter-AI.git
-cd Specter-AI
+git clone https://github.com/moirah-ai/moirah-ai.git
+cd Moirah-AI
 
 # Install dependencies
 npm install
@@ -125,7 +125,7 @@ npm run build:linux   # Linux
 
 ## Quick Start
 
-1. **Launch Specter AI** -- the overlay appears in the top-right corner of your screen
+1. **Launch Moirah AI** -- the overlay appears in the top-right corner of your screen
 2. **Open Settings** (right-click the system tray icon > Settings, or use the dashboard)
 3. **Enter your OpenRouter API key** -- get one free at [openrouter.ai/keys](https://openrouter.ai/keys)
 4. **Select a model** -- `google/gemini-flash-1.5` is recommended for speed; `meta-llama/llama-3.1-8b-instruct:free` for free testing
@@ -140,7 +140,7 @@ npm run build:linux   # Linux
 ## Architecture
 
 ```
-specter-ai/
+moirah-ai/
   src/
     main/                     Electron main process
       index.ts                App entry, window management
@@ -224,7 +224,7 @@ Browse all 500+ models at [openrouter.ai/models](https://openrouter.ai/models).
 
 ### Windows
 - Overlay is excluded from screen share via `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)`
-- Specter hides the overlay briefly when capturing so your own screenshots still include the rest of the screen
+- Moirah hides the overlay briefly when capturing so your own screenshots still include the rest of the screen
 - Packaged builds capture with Electron `desktopCapturer` (with `screenshot-desktop` as fallback)
 - No special permissions required
 
@@ -237,7 +237,7 @@ Browse all 500+ models at [openrouter.ai/models](https://openrouter.ai/models).
 
 ## Comparison with Cluely
 
-| Feature | Cluely | Specter AI |
+| Feature | Cluely | Moirah AI |
 |---|---|---|
 | Price | $20-49/month | **Free** |
 | Source code | Closed | **Open source (MIT)** |

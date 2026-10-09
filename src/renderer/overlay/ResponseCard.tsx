@@ -97,7 +97,7 @@ function ResponseCard({ message, isStreaming = false }: ResponseCardProps) {
               title={href}
               onClick={(e) => {
                 e.preventDefault()
-                if (href) window.specterAPI?.openExternal(href)
+                if (href) window.moirahAPI?.openExternal(href)
               }}
             >
               {children}
@@ -168,7 +168,7 @@ function ResponseCard({ message, isStreaming = false }: ResponseCardProps) {
         {!isUser && !isStreaming && message.content && (
           <button
             onClick={handleCopy}
-            className="absolute -bottom-1 -right-1 p-1 rounded-lg bg-specter-dark/90 border border-white/10
+            className="absolute -bottom-1 -right-1 p-1 rounded-lg bg-moirah-dark/90 border border-white/10
                        opacity-0 group-hover:opacity-100 transition-opacity"
             title="Copy response"
           >

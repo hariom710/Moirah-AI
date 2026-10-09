@@ -78,7 +78,7 @@ export default function MeetingRecorder({ onTranscriptReady, disabled, compact, 
 
     // Check whisper config first
     try {
-      const config = await window.specterAPI?.checkAudioConfig()
+      const config = await window.moirahAPI?.checkAudioConfig()
       if (config && !config.configured) {
         setError(config.error || 'Audio transcription not configured. Add a Whisper API key in Settings.')
         return
@@ -192,7 +192,7 @@ export default function MeetingRecorder({ onTranscriptReady, disabled, compact, 
     setState('transcribing')
     try {
       const arrayBuffer = await blob.arrayBuffer()
-      const text = await window.specterAPI?.sendAudioForTranscription(
+      const text = await window.moirahAPI?.sendAudioForTranscription(
         arrayBuffer,
         mimeTypeRef.current || 'audio/webm'
       )

@@ -44,10 +44,10 @@ function ensureFFI(): boolean {
 
     user32 = { SetWindowDisplayAffinity, GetWindowDisplayAffinity }
     koffiLoaded = true
-    console.log('[Specter] FFI: Win32 user32.dll loaded successfully')
+    console.log('[Moirah] FFI: Win32 user32.dll loaded successfully')
     return true
   } catch (err) {
-    console.error('[Specter] FFI: Failed to load koffi/user32.dll:', err)
+    console.error('[Moirah] FFI: Failed to load koffi/user32.dll:', err)
     koffiLoadFailed = true
     user32 = null
     return false
@@ -68,10 +68,10 @@ function getHWND(win: BrowserWindow): number | null {
     } else if (buf.byteLength === 4) {
       return buf.readUInt32LE()
     }
-    console.warn('[Specter] FFI: Unexpected HWND buffer length:', buf.byteLength)
+    console.warn('[Moirah] FFI: Unexpected HWND buffer length:', buf.byteLength)
     return null
   } catch (err) {
-    console.error('[Specter] FFI: Failed to get HWND:', err)
+    console.error('[Moirah] FFI: Failed to get HWND:', err)
     return null
   }
 }
@@ -88,27 +88,27 @@ export function applyExcludeFromCapture(win: BrowserWindow): boolean {
   if (process.platform !== 'win32') return false
 
   if (!ensureFFI()) {
-    console.warn('[Specter] FFI unavailable — overlay will be visible in screen captures')
+    console.warn('[Moirah] FFI unavailable — overlay will be visible in screen captures')
     return false
   }
 
   const hwnd = getHWND(win)
   if (hwnd === null) {
-    console.error('[Specter] FFI: Could not get HWND')
+    console.error('[Moirah] FFI: Could not get HWND')
     return false
   }
 
   try {
     const result = user32!.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
     if (result) {
-      console.log('[Specter] FFI: WDA_EXCLUDEFROMCAPTURE applied successfully (HWND:', hwnd, ')')
+      console.log('[Moirah] FFI: WDA_EXCLUDEFROMCAPTURE applied successfully (HWND:', hwnd, ')')
       return true
     } else {
-      console.warn('[Specter] FFI: SetWindowDisplayAffinity returned false — flag may not be supported')
+      console.warn('[Moirah] FFI: SetWindowDisplayAffinity returned false — flag may not be supported')
       return false
     }
   } catch (err) {
-    console.error('[Specter] FFI: SetWindowDisplayAffinity failed:', err)
+    console.error('[Moirah] FFI: SetWindowDisplayAffinity failed:', err)
     return false
   }
 }
@@ -134,12 +134,12 @@ export function verifyDisplayAffinity(win: BrowserWindow): number {
         affinity === WDA_EXCLUDEFROMCAPTURE ? '(WDA_EXCLUDEFROMCAPTURE - OK)' :
         affinity === WDA_NONE ? '(WDA_NONE - NOT PROTECTED)' :
         '(UNKNOWN)'
-      console.log(`[Specter] FFI: Display affinity = 0x${affinity.toString(16).padStart(8, '0')} ${label}`)
+      console.log(`[Moirah] FFI: Display affinity = 0x${affinity.toString(16).padStart(8, '0')} ${label}`)
       return affinity
     }
     return -1
   } catch (err) {
-    console.error('[Specter] FFI: GetWindowDisplayAffinity failed:', err)
+    console.error('[Moirah] FFI: GetWindowDisplayAffinity failed:', err)
     return -1
   }
 }

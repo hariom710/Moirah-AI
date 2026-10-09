@@ -257,7 +257,7 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Pr
         return ''
       } else {
         // Log status only — never log response bodies, which may echo audio metadata.
-        console.warn(`[Specter] Whisper API error: ${response.status}`)
+        console.warn(`[Moirah] Whisper API error: ${response.status}`)
 
         if (response.status === 401 || response.status === 403) {
           throw new Error('Whisper API key is invalid or expired. Check Settings > Audio Transcription.')
@@ -267,7 +267,7 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Pr
         }
         if (response.status === 429) {
           // Rate limit — not a fatal error, just skip this chunk
-          console.warn('[Specter] Whisper rate limited, skipping chunk')
+          console.warn('[Moirah] Whisper rate limited, skipping chunk')
           return ''
         }
 

@@ -17,7 +17,7 @@ export default function History() {
 
   const loadConversations = async () => {
     try {
-      const saved = await window.specterAPI.listConversations()
+      const saved = await window.moirahAPI.listConversations()
       setConversations((saved || []) as Conversation[])
     } catch (err) {
       console.error('Failed to load conversations:', err)
@@ -25,7 +25,7 @@ export default function History() {
   }
 
   const handleDelete = useCallback(async (id: string) => {
-    window.specterAPI.deleteConversation(id)
+    window.moirahAPI.deleteConversation(id)
     const updated = conversations.filter((c) => c.id !== id)
     setConversations(updated)
     if (selectedConversation?.id === id) {
@@ -34,7 +34,7 @@ export default function History() {
   }, [conversations, selectedConversation])
 
   const handleClearAll = useCallback(async () => {
-    window.specterAPI.clearConversations()
+    window.moirahAPI.clearConversations()
     setConversations([])
     setSelectedConversation(null)
   }, [])

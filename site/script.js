@@ -1,20 +1,20 @@
-// Specter AI download site logic — ESM module, auto-initializes in the browser.
+// Moirah AI download site logic — ESM module, auto-initializes in the browser.
 // Exports are consumed by vitest (tests/site-detect-os.test.ts).
 
-const RELEASES_BASE = 'https://github.com/umairinayat/Specter-AI/releases/latest/download/'
+const RELEASES_BASE = 'https://github.com/moirah-ai/moirah-ai/releases/latest/download/'
 
 export const DOWNLOAD_URLS = {
   windows: {
-    setup: RELEASES_BASE + 'specter-setup.exe',
-    portable: RELEASES_BASE + 'specter-portable.exe'
+    setup: RELEASES_BASE + 'moirah-setup.exe',
+    portable: RELEASES_BASE + 'moirah-portable.exe'
   },
   macos: {
-    arm64: RELEASES_BASE + 'specter-mac-arm64.zip',
-    x64: RELEASES_BASE + 'specter-mac-x64.zip'
+    arm64: RELEASES_BASE + 'moirah-mac-arm64.zip',
+    x64: RELEASES_BASE + 'moirah-mac-x64.zip'
   },
   linux: {
-    appimage: RELEASES_BASE + 'specter-linux-x64.AppImage',
-    deb: RELEASES_BASE + 'specter-linux-x64.deb'
+    appimage: RELEASES_BASE + 'moirah-linux-x64.AppImage',
+    deb: RELEASES_BASE + 'moirah-linux-x64.deb'
   }
 }
 
@@ -67,8 +67,8 @@ export async function initDownloadButton() {
 
   // Phones/tablets can't run the Electron app; route them to the releases page.
   if (isMobileLike(ua)) {
-    btn.href = 'https://github.com/umairinayat/Specter-AI/releases'
-    label.textContent = 'Get Specter AI on desktop'
+    btn.href = 'https://github.com/moirah-ai/moirah-ai/releases'
+    label.textContent = 'Get Moirah AI on desktop'
     return
   }
 

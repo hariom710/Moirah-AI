@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowRight, ArrowLeft, Zap, Scale, Gift } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Zap, Scale, Gift, Sparkles } from 'lucide-react'
 import type { ProviderId } from '../App'
 
 interface Props {
@@ -21,18 +21,24 @@ const CURATED: Record<ProviderId, Choice[]> = {
     { id: 'anthropic/claude-sonnet-4', label: 'Balanced', desc: 'Top-tier quality and reasoning', icon: Scale },
     { id: 'upstage/solar-pro-3:free', label: 'Free', desc: 'Free tier — perfect for testing', icon: Gift }
   ],
+  gemini: [
+    { id: 'gemini-2.5-flash', label: 'Fast', desc: 'Ultra-fast, cheap, great vision — ideal for real-time use', icon: Zap },
+    { id: 'gemini-2.5-pro', label: 'Deep reasoning', desc: 'Best for complex DSA and system design', icon: Scale },
+    { id: 'gemini-2.0-flash', label: 'Cheapest', desc: 'Lowest cost, still fast with vision', icon: Gift }
+  ],
   openai: [
     { id: 'gpt-5.5', label: 'Fast', desc: 'Latest fast flagship model', icon: Zap },
     { id: 'gpt-5.5-pro', label: 'Most capable', desc: 'Highest quality, higher cost', icon: Scale },
     { id: 'gpt-5.4-mini', label: 'Cheapest', desc: 'Small, fast, inexpensive', icon: Gift }
   ],
   codex: [
-    { id: 'gpt-5.4', label: 'Your plan', desc: 'Uses your ChatGPT/Codex plan login', icon: Zap }
+    { id: 'gpt-5.4', label: 'Your plan', desc: 'Uses your ChatGPT/Codex plan login', icon: Sparkles }
   ]
 }
 
 const MODEL_SETTING: Record<ProviderId, string> = {
   openrouter: 'selectedModel',
+  gemini: 'geminiModel',
   openai: 'openaiModel',
   codex: 'codexModel'
 }
@@ -49,7 +55,7 @@ export default function PickModel({ provider, onNext, onBack }: Props) {
   async function pickAndContinue() {
     setError(null)
     try {
-      await window.specterAPI?.setSetting(MODEL_SETTING[provider], selected)
+      await window.moirahAPI?.setSetting(MODEL_SETTING[provider], selected)
       onNext()
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to save model')
@@ -63,7 +69,7 @@ export default function PickModel({ provider, onNext, onBack }: Props) {
         You can browse all models later in Settings → Models.
       </p>
       <button
-        onClick={() => window.specterAPI?.openDashboard()}
+        onClick={() => window.moirahAPI?.openDashboard()}
         className="text-xs text-violet-300 hover:text-violet-200 mb-6"
       >
         Open model browser now

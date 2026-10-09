@@ -1,14 +1,14 @@
-# Contributing to Specter AI
+# Contributing to Moirah AI
 
-Thanks for your interest in contributing to Specter AI! This document provides guidelines and instructions for contributing.
+Thanks for your interest in contributing to Moirah AI! This document provides guidelines and instructions for contributing.
 
 ## Getting Started
 
 1. **Fork the repository** on GitHub
 2. **Clone your fork** locally:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/specter-ai.git
-   cd specter-ai
+   git clone https://github.com/YOUR_USERNAME/moirah-ai.git
+   cd moirah-ai
    ```
 3. **Install dependencies:**
    ```bash
@@ -67,7 +67,7 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 ## Project Structure
 
 ```
-specter-ai/
+moirah-ai/
   src/
     main/           -- Electron main process
     preload/        -- Preload scripts (IPC bridge)
@@ -98,7 +98,7 @@ specter-ai/
 When filing an issue, please include:
 
 1. **OS and version** (e.g., Windows 11, macOS 14.2, Ubuntu 24.04)
-2. **Specter AI version** (from Settings or `package.json`)
+2. **Moirah AI version** (from Settings or `package.json`)
 3. **Steps to reproduce** the issue
 4. **Expected behavior** vs. **actual behavior**
 5. **Relevant logs** (DevTools console, terminal output)

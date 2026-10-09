@@ -1,8 +1,8 @@
 /**
- * Generate app icons for Specter AI
+ * Generate app icons for Moirah AI
  * Creates icon.png (512x512), icon.ico (Windows), and sized PNGs for Linux
  *
- * Icon design: A stylized ghost/specter "S" on a violet gradient circle
+ * Icon design: A stylized ghost/moirah "S" on a violet gradient circle
  * Brand color: #7C3AED (violet-600)
  */
 const sharp = require('sharp')
@@ -21,9 +21,9 @@ for (const dir of [BUILD_DIR, ASSETS_DIR, ICONS_DIR]) {
 }
 
 /**
- * Create an SVG icon for Specter:
- * - Rounded rectangle background with violet gradient
- * - Stylized "S" letter with a ghostly glow effect
+ * Create an SVG icon for Moirah:
+ * - Rounded rectangle background with violet -> cyan gradient
+ * - Geometric "M" monogram built from thick rounded strokes
  * - Modern, clean, recognizable at small sizes
  */
 function createSvgIcon(size) {
@@ -31,18 +31,14 @@ function createSvgIcon(size) {
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#8B5CF6"/>
-      <stop offset="100%" style="stop-color:#6D28D9"/>
+      <stop offset="100%" style="stop-color:#06B6D4"/>
     </linearGradient>
     <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#C4B5FD;stop-opacity:0.4"/>
-      <stop offset="100%" style="stop-color:#7C3AED;stop-opacity:0"/>
+      <stop offset="100%" style="stop-color:#06B6D4;stop-opacity:0"/>
     </linearGradient>
     <filter id="shadow">
       <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#1e1b4b" flood-opacity="0.3"/>
-    </filter>
-    <filter id="innerGlow">
-      <feGaussianBlur stdDeviation="12" result="blur"/>
-      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
     </filter>
   </defs>
 
@@ -52,60 +48,38 @@ function createSvgIcon(size) {
   <!-- Subtle inner glow -->
   <rect x="16" y="16" width="480" height="480" rx="96" ry="96" fill="url(#glow)"/>
 
-  <!-- Ghost/Specter shape - a stylized S with ethereal qualities -->
+  <!-- Geometric M monogram -->
   <g filter="shadow" transform="translate(256, 256)">
-    <!-- Main specter body - flowing S-curve ghost shape -->
-    <path d="
-      M -20 -160
-      C 80 -160, 120 -120, 120 -70
-      C 120 -20, 60 10, -10 10
-      C -60 10, -100 30, -100 70
-      C -100 120, -40 155, 40 155
-      L 40 170
-      C -50 170, -120 135, -120 75
-      C -120 20, -60 -10, 10 -10
-      C 60 -10, 100 -35, 100 -70
-      C 100 -110, 60 -140, -20 -140
-      Z
-    " fill="white" opacity="0.95"/>
-
-    <!-- Ghost head/top circle accent -->
-    <circle cx="-20" cy="-155" r="28" fill="white" opacity="0.95"/>
-
-    <!-- Ethereal trailing wisps at bottom -->
-    <path d="
-      M 10 155 Q 0 180, -15 175
-      M 40 160 Q 35 185, 20 180
-      M 60 150 Q 60 178, 48 175
-    " stroke="white" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.7"/>
-
-    <!-- Eye dots on the ghost -->
-    <circle cx="-35" cy="-145" r="7" fill="#7C3AED" opacity="0.8"/>
-    <circle cx="-5" cy="-145" r="7" fill="#7C3AED" opacity="0.8"/>
+    <path d="M -118 128 L -118 -128 L 0 32 L 118 -128 L 118 128"
+          fill="none" stroke="white" stroke-width="58"
+          stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
+    <!-- Accent dot at the M's center valley -->
+    <circle cx="0" cy="-42" r="18" fill="white" opacity="0.9"/>
   </g>
 </svg>`
 }
 
 /**
- * Alternative simpler icon - clean "S" monogram
- * Better readability at small sizes like 16x16 tray icon
+ * Simplified monogram for small sizes (16x16 / 32x32 tray icon)
+ * Same M, thicker strokes, no filters
  */
 function createSimpleSvgIcon(size) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#8B5CF6"/>
-      <stop offset="100%" style="stop-color:#6D28D9"/>
+      <stop offset="100%" style="stop-color:#06B6D4"/>
     </linearGradient>
   </defs>
   <rect x="16" y="16" width="480" height="480" rx="96" ry="96" fill="url(#bg2)"/>
-  <text x="256" y="340" font-family="Arial, Helvetica, sans-serif" font-size="320" font-weight="bold"
-    fill="white" text-anchor="middle" opacity="0.95">S</text>
+  <path d="M -118 128 L -118 -128 L 0 32 L 118 -128 L 118 128"
+        fill="none" stroke="white" stroke-width="64"
+        stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
 </svg>`
 }
 
 async function main() {
-  console.log('Generating Specter AI icons...')
+  console.log('Generating Moirah AI icons...')
 
   // Generate the main 512x512 PNG
   const svg512 = Buffer.from(createSvgIcon(512))

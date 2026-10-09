@@ -13,7 +13,7 @@ export default function UpdateToast({ recording = false }: Props) {
   const [restarting, setRestarting] = useState(false)
 
   useEffect(() => {
-    const api = window.specterAPI
+    const api = window.moirahAPI
     if (!api?.onUpdateStatus) return
     return api.onUpdateStatus((data) => {
       if (data.ready && data.version) setVersion(data.version)
@@ -29,7 +29,7 @@ export default function UpdateToast({ recording = false }: Props) {
     }
     if (restarting) return
     setRestarting(true)
-    window.specterAPI?.installUpdate()
+    window.moirahAPI?.installUpdate()
   }
 
   return (

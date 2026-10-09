@@ -1,5 +1,5 @@
 // ========================================
-// Specter AI — Landing Page Scripts v3
+// Moirah AI — Landing Page Scripts v3
 // Spring physics scroll reveals, reduced-motion support
 // No particle canvas — uses CSS grain texture instead
 // ========================================

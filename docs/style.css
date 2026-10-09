@@ -1,5 +1,5 @@
 /* ========================================
-   Specter AI — Landing Page v3
+   Moirah AI — Landing Page v3
    Fragmented Layers + Typographic Brutalism
    Sharp geometry, grain texture, spring physics
    No glassmorphism, no bento, no neon glow
@@ -479,8 +479,8 @@ img { max-width: 100%; }
   font-family: var(--mono);
 }
 
-/* Specter overlay mock on "your screen" */
-.specter-overlay {
+/* Moirah overlay mock on "your screen" */
+.moirah-overlay {
   position: absolute;
   bottom: 12px;
   right: 12px;
@@ -1073,7 +1073,7 @@ kbd {
 
   .stack-row { gap: 14px; }
 
-  .specter-overlay { width: 170px; }
+  .moirah-overlay { width: 170px; }
 
   .privacy-pipeline .pipe-arrow { display: none; }
 }
