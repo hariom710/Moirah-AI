@@ -3,7 +3,7 @@ import { globalShortcut, BrowserWindow } from 'electron'
 import { IPC_CHANNELS } from '../shared/ipc-channels'
 import { getSetting } from '../services/store'
 import { DEFAULT_HOTKEYS } from '../shared/constants'
-import { showOverlay, toggleOverlay, getOverlayWindow } from './overlay-window'
+import { showOverlay, toggleOverlay, hideOverlay, getOverlayWindow } from './overlay-window'
 
 export function registerHotkeys(overlayWindow: BrowserWindow): void {
   // Kept for API stability with callers — handlers below resolve the live
@@ -15,7 +15,9 @@ function applyHotkeys(): void {
   // Unregister all first to avoid conflicts
   globalShortcut.unregisterAll()
 
-  const hotkeys = getSetting<typeof DEFAULT_HOTKEYS>('hotkeys') || DEFAULT_HOTKEYS
+  // Merge stored hotkeys over defaults so newly added hotkeys (e.g. panicHide)
+  // work for existing installs whose stored object predates them.
+  const hotkeys = { ...DEFAULT_HOTKEYS, ...(getSetting<typeof DEFAULT_HOTKEYS>('hotkeys') || {}) }
 
   // Ctrl/Cmd + Enter: Ask AI based on current context
   try {
@@ -62,6 +64,15 @@ function applyHotkeys(): void {
     })
   } catch (e) {
     console.warn('[Moirah] Failed to register toggleAudio hotkey:', e)
+  }
+
+  // Ctrl/Cmd + Shift + H: Panic hide — instantly hide the overlay (screen-share safety)
+  try {
+    globalShortcut.register(hotkeys.panicHide, () => {
+      hideOverlay()
+    })
+  } catch (e) {
+    console.warn('[Moirah] Failed to register panicHide hotkey:', e)
   }
 }
 

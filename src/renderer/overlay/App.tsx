@@ -514,6 +514,16 @@ export default function App() {
   }, [getMessageHistory])
 
   /**
+   * Quick follow-up actions — canned prompts sent as a normal message so the
+   * full history is preserved. Disabled while streaming.
+   */
+  const sendFollowUp = useCallback((text: string) => {
+    if (isStreamingRef.current) return
+    queryRef.current = text
+    doSubmit(false)
+  }, [doSubmit])
+
+  /**
    * One-click "Analyze Screen" — captures screen + sends to AI automatically.
    * No text input needed. Just click and get AI analysis of what's on screen.
    */
@@ -1202,6 +1212,30 @@ export default function App() {
             <span className="text-white/30 text-xs">
               {includeScreen || isCapturing ? 'Capturing screen & thinking...' : 'Thinking...'}
             </span>
+          </div>
+        )}
+
+        {/* Quick follow-up actions — shown after a completed answer */}
+        {!isStreaming && !error && messages.length > 0 &&
+          messages[messages.length - 1].role === 'assistant' && (
+          <div className="flex flex-wrap gap-1.5 px-1 pt-1">
+            {[
+              { label: 'Explain simpler', text: 'Explain that in simpler terms with a concrete example.' },
+              { label: 'More detail', text: 'Give more detail on the key points you just covered.' },
+              { label: 'Bullet summary', text: 'Summarize your last answer as 3-5 tight bullets.' },
+              { label: 'Key takeaways', text: 'List the key takeaways from your last answer in one line each.' }
+            ].map((action) => (
+              <button
+                key={action.label}
+                onClick={() => sendFollowUp(action.text)}
+                className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[11px]
+                           text-white/50 hover:bg-violet-500/15 hover:border-violet-500/30
+                           hover:text-violet-300 transition-colors"
+                title={action.text}
+              >
+                {action.label}
+              </button>
+            ))}
           </div>
         )}
 

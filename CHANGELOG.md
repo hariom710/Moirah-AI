@@ -2,6 +2,28 @@
 
 All notable changes to Moirah AI are documented in this file.
 
+## [1.6.0] - 2026-10-08
+
+First release as **Moirah AI** — a rebrand and feature release based on Specter-AI 1.5.0 (MIT, by Umair Inayat).
+
+### Added
+- **Google Gemini provider**: direct Google AI Studio REST client with streaming + screenshot vision (`gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-2.0-flash`), free-tier friendly key setup in the wizard and Settings, key auto-detection (`AIza…`), encrypted key storage, cost tracking
+- **Prompt presets**: DSA/Coding, System Design, Behavioral (STAR), HR, and Meeting Notes presets on the Interview page — composed with the base prompt, interview grounding, and the immutable trust policy
+- **DSA mode + coding-language picker**: force the DSA preset and choose the answer language (C++, C, Python, Java, JavaScript, TypeScript, Go, Rust, Kotlin, Swift); answers arrive as approach → code → complexity → edge cases
+- **Panic hide hotkey** (`Ctrl+Shift+H`): instantly hide the overlay; configurable in Settings > Keyboard Shortcuts
+- **Auto-hide in meetings** (opt-in): best-effort foreground-window-title heuristic (koffi FFI on Windows, osascript on macOS) that hides the overlay when Zoom/Teams/Meet/Webex/etc. gains focus and restores it when focus leaves — edge-triggered so manual re-shows are honored; documented as not-true-share-detection
+- **Quick follow-up actions**: one-click chips after every answer (Explain simpler, More detail, Bullet summary, Key takeaways)
+- **Session export**: export any conversation as Markdown via save dialog from History (per-row and detail view)
+- New app icon: geometric "M" monogram with violet→cyan gradient
+- Regression tests: Gemini SSE parsing + request building, Gemini key detection (59 tests total)
+
+### Changed
+- Full rebrand Specter AI → **Moirah AI** (`com.moirah.ai`, `moirahAPI` bridge, `--moirah-*` CSS vars, artifact names `moirah-*`)
+- Onboarding skip-check and provider docs updated for the new provider set
+
+### Notes
+- MIT attribution preserved: derived from Specter-AI by Umair Inayat (see LICENSE)
+
 ## [1.5.0] - 2026-09-22
 
 ### Added

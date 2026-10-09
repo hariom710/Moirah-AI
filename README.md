@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  Open-source, privacy-first AI screen & meeting copilot.<br>
-  Invisible overlay powered by <a href="https://openrouter.ai">OpenRouter</a>. Bring your own API key.
+  Open-source, privacy-first AI screen & meeting copilot with a dedicated interview mode.<br>
+  Invisible overlay powered by OpenRouter, OpenAI, Google Gemini, or your local Codex plan. Bring your own key.
 </p>
 
 <p align="center">
@@ -23,11 +23,11 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/license/moirah-ai/Moirah-AI?style=flat-square" alt="License" />
+  <img src="https://img.shields.io/github/license/hariom710/Moirah-AI?style=flat-square" alt="License" />
   <img src="https://img.shields.io/badge/electron-33+-47848F?style=flat-square&logo=electron" alt="Electron" />
   <img src="https://img.shields.io/badge/react-18-61DAFB?style=flat-square&logo=react" alt="React" />
   <img src="https://img.shields.io/badge/typescript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/openrouter-500%2B_models-7C3AED?style=flat-square" alt="OpenRouter" />
+  <img src="https://img.shields.io/badge/providers-4-7C3AED?style=flat-square" alt="AI providers" />
 </p>
 
 ---
@@ -37,8 +37,9 @@
 Moirah AI is a desktop application that overlays AI-powered assistance on your screen during meetings, interviews, and work sessions. The overlay is **invisible to screen-sharing software** (Zoom, Google Meet, Teams), so only you can see it.
 
 - Reads your screen via OCR and transcribes meeting audio in real time
-- Sends context to any AI model on OpenRouter (500+ models including GPT-4, Claude, Gemini, Llama, DeepSeek)
+- Sends context to your chosen AI provider — OpenRouter (500+ models), OpenAI, Google Gemini, or your local Codex plan
 - Streams responses into a translucent overlay that stays on top of all windows
+- Interview mode: grounds every answer in a pasted job description + your CV, with DSA/coding presets
 - Runs locally -- no data leaves your machine except the AI API call
 
 Think of it as a free, open-source, privacy-first alternative to Cluely.
@@ -62,21 +63,37 @@ Think of it as a free, open-source, privacy-first alternative to Cluely.
 - Transcribes every 10 seconds using configurable Whisper provider (Groq, OpenAI, or custom endpoint)
 - Rolling transcript buffer (last ~60s of conversation) fed into AI context
 
-### AI Integration
-- Powered by [OpenRouter](https://openrouter.ai) -- access 500+ AI models with one API key
+### AI Providers
+- Four providers, switchable in Settings — bring your own key:
+  - **[OpenRouter](https://openrouter.ai)** — 500+ models (GPT, Claude, Gemini, Llama, DeepSeek) with one key
+  - **Google Gemini** — free-tier friendly keys from Google AI Studio; `gemini-2.5-flash` / `2.5-pro` / `2.0-flash`, all with screenshot vision
+  - **OpenAI** — direct Platform API credits
+  - **Codex Plan** — uses your local Codex CLI login (ChatGPT Plus/Pro), no API key needed
 - Streaming responses with real-time token count and cost display
 - Configurable system prompt and model selection
 
-### Playbooks
-- Upload context documents (meeting prep, job descriptions, notes)
-- Active playbooks are automatically injected into every AI prompt
-- Create, edit, toggle, and delete playbooks from the dashboard
+### Interview & DSA Copilot
+- **Interview mode**: paste a job description + your CV (text or PDF) — every answer is grounded in your real experience, with a JD↔CV keyword match preview
+- **Voice auto-answer**: detected interview questions are answered automatically in first person while you record
+- **Prompt presets**: DSA/Coding, System Design, Behavioral (STAR), HR, Meeting Notes
+- **DSA mode + coding language picker**: answers arrive as approach → code (C++, Python, Java, Go, …) → complexity → edge cases
+
+### Safety & Privacy Controls
+- **Panic hide** (`Ctrl+Shift+H`): instantly hide the overlay at any moment
+- **Auto-hide in meetings** (opt-in): hides the overlay while Zoom/Teams/Meet is in the foreground — best-effort foreground-window-title heuristic, not true screen-share detection
+- Screen-capture exclusion: Windows `WDA_EXCLUDEFROMCAPTURE` FFI, macOS panel/screen-saver level
+
+### Productivity
+- **Quick follow-up actions**: one-click chips after every answer (Explain simpler / More detail / Bullet summary / Key takeaways)
+- **Session export**: export any conversation as Markdown from History
+- **Playbooks**: inject context documents (meeting prep, JDs, notes) into every prompt
 
 ### Dashboard
-- Settings: API key, overlay opacity, hotkeys, system prompt
-- Models: browse and select from default or fetched OpenRouter models
+- Settings: provider + API keys, overlay opacity, hotkeys, system prompt, meeting auto-hide
+- Models: browse and select models per provider
+- Interview: JD/CV profile, interview mode, presets, DSA mode, coding language
 - Playbooks: manage your context documents
-- History: browse and revisit past conversations
+- History: browse, revisit, and export past conversations
 
 ### Global Hotkeys
 | Shortcut | Action |
@@ -85,6 +102,7 @@ Think of it as a free, open-source, privacy-first alternative to Cluely.
 | `Ctrl+Shift+Enter` / `Cmd+Shift+Enter` | Ask AI with screenshot |
 | `Ctrl+\` / `Cmd+\` | Toggle overlay visibility |
 | `Ctrl+Shift+Space` / `Cmd+Shift+Space` | Toggle audio recording |
+| `Ctrl+Shift+H` / `Cmd+Shift+H` | **Panic hide** — instantly hide the overlay |
 
 ---
 
@@ -92,7 +110,7 @@ Think of it as a free, open-source, privacy-first alternative to Cluely.
 
 ### Download Pre-Built Binaries
 
-Download the latest release for your platform from the [Releases](https://github.com/moirah-ai/moirah-ai/releases) page:
+Download the latest release for your platform from the [Releases](https://github.com/hariom710/Moirah-AI/releases) page:
 
 | Platform | Format |
 |---|---|
@@ -106,7 +124,7 @@ Download the latest release for your platform from the [Releases](https://github
 
 ```bash
 # Clone the repository
-git clone https://github.com/moirah-ai/moirah-ai.git
+git clone https://github.com/hariom710/Moirah-AI.git
 cd Moirah-AI
 
 # Install dependencies
@@ -125,15 +143,20 @@ npm run build:linux   # Linux
 
 ## Quick Start
 
-1. **Launch Moirah AI** -- the overlay appears in the top-right corner of your screen
-2. **Open Settings** (right-click the system tray icon > Settings, or use the dashboard)
-3. **Enter your OpenRouter API key** -- get one free at [openrouter.ai/keys](https://openrouter.ai/keys)
-4. **Select a model** -- `google/gemini-flash-1.5` is recommended for speed; `meta-llama/llama-3.1-8b-instruct:free` for free testing
-5. **Use it:**
+1. **Launch Moirah AI** -- the setup wizard walks you through provider + key selection; the overlay appears in the top-right corner of your screen
+2. **Pick a provider:**
+   - **OpenRouter** — get a free key at [openrouter.ai/keys](https://openrouter.ai/keys)
+   - **Google Gemini** — get a free-tier key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (recommended if you want free + vision)
+   - **OpenAI** — a Platform API key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+   - **Codex Plan** — no key needed; uses your local Codex CLI login
+3. **Select a model** -- `google/gemini-3-flash-preview` (OpenRouter) or `gemini-2.5-flash` (Gemini) for speed
+4. **Use it:**
    - Type a question in the overlay and press Enter
    - Press `Ctrl+Enter` to ask with screen context
    - Press `Ctrl+Shift+Enter` to include a screenshot
    - Press `Ctrl+Shift+Space` to start/stop audio transcription
+   - Press `Ctrl+Shift+H` to panic-hide the overlay
+   - Interview? Open Dashboard > Interview, paste the JD + CV, turn on Interview Mode
 
 ---
 
@@ -149,7 +172,9 @@ moirah-ai/
       screen-capture.ts       Screenshot + OCR dispatch
       ocr-worker.ts           Tesseract OCR in worker thread
       audio-capture.ts        Mic recording + Whisper transcription
-      hotkey-manager.ts       Global keyboard shortcuts
+      hotkey-manager.ts       Global keyboard shortcuts (incl. panic hide)
+      foreground.ts           Foreground window title (koffi FFI / osascript)
+      meeting-guard.ts        Opt-in meeting-app auto-hide heuristic
       tray.ts                 System tray menu
       ipc-handlers.ts         IPC bridge (main <-> renderer)
 
@@ -172,8 +197,12 @@ moirah-ai/
 
     services/
       openrouter.ts           OpenRouter API client (streaming)
-      context-builder.ts      Prompt assembly (screen + audio + query)
-      store.ts                Persistent settings (electron-store)
+      openai-api.ts           OpenAI Responses API client (streaming + vision)
+      gemini-api.ts           Google Gemini REST client (streaming + vision)
+      codex.ts                Codex CLI integration
+      presets.ts              Prompt presets + coding-language picker
+      context-builder.ts      Prompt assembly (screen + audio + query + interview)
+      store.ts                Persistent settings (electron-store, keys encrypted)
 
     shared/
       types.ts                TypeScript interfaces
@@ -185,8 +214,13 @@ moirah-ai/
 
 ```
 Screen -> screenshot-desktop -> Tesseract.js (worker thread) -> OCR text -\
-                                                                           |-> context-builder -> OpenRouter API -> streaming response -> overlay
-Microphone -> MediaRecorder API -> Whisper (Groq/OpenAI/custom) -> transcript text --------------/
+                                                                           |-> context-builder (+ interview grounding + presets)
+Microphone -> MediaRecorder API -> Whisper (Groq/OpenAI/custom) -> transcript text ---/        |
+                                                                                     provider dispatch
+                                                                                  (OpenRouter / OpenAI / Gemini / Codex)
+                                                                                               |
+                                                                                               v
+                                                                                    streaming response -> overlay
 ```
 
 ### Privacy Model
@@ -241,10 +275,11 @@ Browse all 500+ models at [openrouter.ai/models](https://openrouter.ai/models).
 |---|---|---|
 | Price | $20-49/month | **Free** |
 | Source code | Closed | **Open source (MIT)** |
-| AI backend | Proprietary | **OpenRouter (500+ models)** |
+| AI backend | Proprietary | **OpenRouter / OpenAI / Gemini / Codex plan** |
 | Data privacy | Cloud-dependent | **Local-first** |
-| Model choice | Fixed | **Any model on OpenRouter** |
-| Customization | Limited | **Full system prompt control** |
+| Model choice | Fixed | **Any model on OpenRouter, Gemini, or OpenAI** |
+| Interview mode (JD/CV grounding) | Paid | **Built-in, free** |
+| Customization | Limited | **Full system prompt control + presets** |
 | Playbooks | Paid feature | **Built-in, free** |
 | Self-hosting | No | **Yes** |
 
@@ -297,6 +332,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 - **Whisper transcription** supports Groq (fastest, recommended), OpenAI, and custom endpoints. Configure the provider and API key in Settings.
 - **Vision screenshots** require a vision-capable model (Gemini, Claude, Llama 4, GPT-4o, etc.). Text-only models still receive OCR text when it is available.
+- **Meeting auto-hide** is a best-effort heuristic: it polls the foreground window title every 2 seconds and matches known meeting apps (Zoom, Teams, Meet, Webex, …). It is **not** true screen-share detection and can miss or mis-trigger. The `Ctrl+Shift+H` panic-hide hotkey is the reliable escape hatch.
 - **Linux screen share exclusion** is unreliable on Wayland compositors.
 
 ---
@@ -304,6 +340,8 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ## License
 
 [MIT](LICENSE) -- free for personal and commercial use.
+
+This project is a derivative of **[Specter-AI](https://github.com/umairinayat/Specter-AI)** by Umair Inayat (MIT). See [LICENSE](LICENSE) for the full copyright notice.
 
 ---
 

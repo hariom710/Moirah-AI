@@ -60,6 +60,7 @@ export const IPC_CHANNELS = {
   CONVERSATIONS_SAVE: 'conversations:save',
   CONVERSATIONS_DELETE: 'conversations:delete',
   CONVERSATIONS_CLEAR: 'conversations:clear',
+  CONVERSATIONS_EXPORT: 'conversations:export',
 
   // Onboarding
   ONBOARDING_COMPLETE: 'onboarding:complete',

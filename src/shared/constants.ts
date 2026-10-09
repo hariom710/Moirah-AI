@@ -2,7 +2,7 @@
 
 export const APP_NAME = 'Moirah AI'
 export const APP_ID = 'com.moirah.ai'
-export const APP_VERSION = '1.5.0'
+export const APP_VERSION = '1.6.0'
 
 export const ACCENT_COLOR = '#7C3AED' // violet
 export const ACCENT_COLOR_RGB = '124, 58, 237'
@@ -40,7 +40,8 @@ export const DEFAULT_HOTKEYS = {
   askAI: 'CommandOrControl+Return',
   toggleOverlay: 'CommandOrControl+\\',
   toggleAudio: 'CommandOrControl+Shift+Space',
-  screenshotAsk: 'CommandOrControl+Shift+Return'
+  screenshotAsk: 'CommandOrControl+Shift+Return',
+  panicHide: 'CommandOrControl+Shift+H'
 }
 
 export const DEFAULT_MODELS = [
@@ -146,6 +147,7 @@ export const DEFAULT_SETTINGS = {
   whisperModel: '',         // only used when provider is 'custom'
   autoHideDelay: 0,          // seconds, 0 = disabled
   smartCrop: false,           // capture active window only (vs full screen)
+  autoHideOnMeeting: false,   // best-effort meeting-app foreground heuristic
   // Onboarding
   onboardingComplete: false,
   // Interview profile — JD + CV grounding
@@ -163,7 +165,7 @@ export const DEFAULT_SETTINGS = {
 
 export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 export const OPENROUTER_KEYS_URL = 'https://openrouter.ai/keys'
-export const OPENROUTER_REFERER = 'https://github.com/moirah-ai/moirah-ai'
+export const OPENROUTER_REFERER = 'https://github.com/hariom710/Moirah-AI'
 export const OPENROUTER_TITLE = 'Moirah AI'
 
 export const OPENAI_API_BASE_URL = 'https://api.openai.com/v1'

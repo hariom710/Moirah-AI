@@ -26,6 +26,7 @@ interface SettingsState {
     toggleOverlay: string
     toggleAudio: string
     screenshotAsk: string
+    panicHide: string
   }
   // Whisper / audio transcription
   whisperProvider: 'groq' | 'openai' | 'custom'
@@ -34,6 +35,7 @@ interface SettingsState {
   whisperModel: string
   autoHideDelay: number
   smartCrop: boolean
+  autoHideOnMeeting: boolean
 }
 
 const DEFAULT_STATE: SettingsState = {
@@ -55,14 +57,16 @@ const DEFAULT_STATE: SettingsState = {
     askAI: 'CommandOrControl+Return',
     toggleOverlay: 'CommandOrControl+\\',
     toggleAudio: 'CommandOrControl+Shift+Space',
-    screenshotAsk: 'CommandOrControl+Shift+Return'
+    screenshotAsk: 'CommandOrControl+Shift+Return',
+    panicHide: 'CommandOrControl+Shift+H'
   },
   whisperProvider: 'groq',
   whisperApiKey: '',
   whisperApiUrl: '',
   whisperModel: '',
   autoHideDelay: 0,
-  smartCrop: false
+  smartCrop: false,
+  autoHideOnMeeting: false
 }
 
 export default function Settings() {
@@ -104,13 +108,14 @@ export default function Settings() {
         systemPrompt: all.systemPrompt || '',
         language: all.language || 'en',
         theme: all.theme || 'dark',
-        hotkeys: all.hotkeys || DEFAULT_STATE.hotkeys,
+        hotkeys: { ...DEFAULT_STATE.hotkeys, ...(all.hotkeys || {}) },
         whisperProvider: all.whisperProvider || 'groq',
         whisperApiKey: all.whisperApiKey || '',
         whisperApiUrl: all.whisperApiUrl || '',
         whisperModel: all.whisperModel || '',
         autoHideDelay: typeof all.autoHideDelay === 'number' ? all.autoHideDelay : 0,
-        smartCrop: all.smartCrop || false
+        smartCrop: all.smartCrop || false,
+        autoHideOnMeeting: all.autoHideOnMeeting || false
       })
     } catch (err) {
       console.error('Failed to load settings:', err)
@@ -143,6 +148,7 @@ export default function Settings() {
       await api.setSetting('whisperModel', settings.whisperModel)
       await api.setSetting('autoHideDelay', settings.autoHideDelay)
       await api.setSetting('smartCrop', settings.smartCrop)
+      await api.setSetting('autoHideOnMeeting', settings.autoHideOnMeeting)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
@@ -746,6 +752,29 @@ export default function Settings() {
             </button>
           </div>
 
+          {/* Auto-hide during meetings — best-effort foreground-app heuristic */}
+          <div className="flex items-center justify-between">
+            <div className="pr-4">
+              <label className="text-sm text-white/50">Auto-hide in Meetings</label>
+              <p className="text-xs text-white/20 mt-0.5">
+                Hide the overlay while Zoom/Teams/Meet is in the foreground. Best-effort title
+                heuristic — not true screen-share detection; the Panic Hide hotkey always works.
+              </p>
+            </div>
+            <button
+              onClick={() => updateSetting('autoHideOnMeeting', !settings.autoHideOnMeeting)}
+              className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
+                settings.autoHideOnMeeting ? 'bg-violet-500' : 'bg-white/10'
+              }`}
+            >
+              <div
+                className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                  settings.autoHideOnMeeting ? 'translate-x-[22px]' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+          </div>
+
           {settings.autoCapture && (
             <div>
               <label className="text-sm text-white/50 block mb-2">
@@ -793,7 +822,8 @@ export default function Settings() {
             { key: 'askAI' as const, label: 'Ask AI', desc: 'Trigger AI with current context' },
             { key: 'toggleOverlay' as const, label: 'Toggle Overlay', desc: 'Show/hide the overlay' },
             { key: 'toggleAudio' as const, label: 'Toggle Audio', desc: 'Start/stop recording' },
-            { key: 'screenshotAsk' as const, label: 'Screenshot + Ask', desc: 'Capture screen and ask AI' }
+            { key: 'screenshotAsk' as const, label: 'Screenshot + Ask', desc: 'Capture screen and ask AI' },
+            { key: 'panicHide' as const, label: 'Panic Hide', desc: 'Instantly hide the overlay (screen-share safety)' }
           ]).map((item) => (
             <div key={item.key} className="flex items-center justify-between py-2">
               <div>

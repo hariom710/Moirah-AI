@@ -17,6 +17,7 @@ export interface UserSettings {
     toggleOverlay: string
     toggleAudio: string
     screenshotAsk: string
+    panicHide: string
   }
   autoCapture: boolean
   autoCaptureInterval: number
@@ -32,6 +33,7 @@ export interface UserSettings {
   // UX
   autoHideDelay: number // seconds, 0 = disabled
   smartCrop: boolean    // capture active window only (vs full screen)
+  autoHideOnMeeting: boolean // best-effort foreground-app heuristic (see meeting-guard.ts)
   // Onboarding
   onboardingComplete: boolean
   // Interview profile — JD + CV grounding (Parakeet-style)

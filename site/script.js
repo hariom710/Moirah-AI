@@ -1,7 +1,7 @@
 // Moirah AI download site logic — ESM module, auto-initializes in the browser.
 // Exports are consumed by vitest (tests/site-detect-os.test.ts).
 
-const RELEASES_BASE = 'https://github.com/moirah-ai/moirah-ai/releases/latest/download/'
+const RELEASES_BASE = 'https://github.com/hariom710/Moirah-AI/releases/latest/download/'
 
 export const DOWNLOAD_URLS = {
   windows: {
@@ -67,7 +67,7 @@ export async function initDownloadButton() {
 
   // Phones/tablets can't run the Electron app; route them to the releases page.
   if (isMobileLike(ua)) {
-    btn.href = 'https://github.com/moirah-ai/moirah-ai/releases'
+    btn.href = 'https://github.com/hariom710/Moirah-AI/releases'
     label.textContent = 'Get Moirah AI on desktop'
     return
   }

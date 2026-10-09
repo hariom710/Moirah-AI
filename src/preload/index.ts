@@ -72,6 +72,8 @@ export interface MoirahAPI {
   saveConversation: (conversation: { id: string; title: string; messages: Array<{ id: string; role: string; content: string; timestamp: number; tokenCount?: number; cost?: number }>; model: string; createdAt: number; updatedAt: number }) => Promise<void>
   deleteConversation: (id: string) => void
   clearConversations: () => void
+  /** Export a conversation as Markdown — opens a save dialog. */
+  exportConversation: (id: string) => Promise<{ ok: boolean; canceled?: boolean; path?: string }>
 
   // App
   getVersion: () => Promise<string>
@@ -266,6 +268,7 @@ const api: MoirahAPI = {
     ipcRenderer.send(IPC_CHANNELS.CONVERSATIONS_DELETE, id)
   },
   clearConversations: () => ipcRenderer.send(IPC_CHANNELS.CONVERSATIONS_CLEAR),
+  exportConversation: (id) => ipcRenderer.invoke(IPC_CHANNELS.CONVERSATIONS_EXPORT, id),
 
   // App
   getVersion: () => ipcRenderer.invoke(IPC_CHANNELS.APP_VERSION),

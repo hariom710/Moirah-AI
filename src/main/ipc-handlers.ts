@@ -1,5 +1,6 @@
 // IPC handlers — bridge between main and renderer processes
-import { ipcMain, BrowserWindow, app, shell } from 'electron'
+import { ipcMain, BrowserWindow, app, shell, dialog } from 'electron'
+import { writeFile } from 'node:fs/promises'
 import { IPC_CHANNELS } from '../shared/ipc-channels'
 import { getSetting, setSetting, getAllSettings, getConversations, saveConversation, deleteConversation, clearConversations, isValidSetting } from '../services/store'
 import { streamCompletion, cancelStream, fetchAvailableModels, estimateCost, getCachedModels, type ChatMessage } from '../services/openrouter'
@@ -613,6 +614,44 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
 
   ipcMain.on(IPC_CHANNELS.CONVERSATIONS_CLEAR, () => {
     clearConversations()
+  })
+
+  // Export a conversation as Markdown via save dialog
+  ipcMain.handle(IPC_CHANNELS.CONVERSATIONS_EXPORT, async (_event, id: unknown) => {
+    if (!isValidConversationId(id)) {
+      throw new Error('Invalid conversation ID')
+    }
+    const conv = getConversations().find((c) => c.id === id)
+    if (!conv) throw new Error('Conversation not found')
+
+    const safeTitle = (conv.title || 'session').replace(/[<>:"/\\|?*\u0000-\u001f]+/g, '-').slice(0, 60).trim() || 'session'
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'Export conversation',
+      defaultPath: `moirah-${safeTitle}.md`,
+      filters: [
+        { name: 'Markdown', extensions: ['md'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    })
+    if (canceled || !filePath) return { ok: false, canceled: true }
+
+    const lines: string[] = [
+      `# ${conv.title}`,
+      '',
+      `- Model: ${conv.model}`,
+      `- Created: ${new Date(conv.createdAt).toLocaleString()}`,
+      `- Exported: ${new Date().toLocaleString()}`,
+      '',
+      '---',
+      ''
+    ]
+    for (const m of conv.messages) {
+      if (m.role === 'system') continue
+      const who = m.role === 'user' ? 'You' : 'Moirah'
+      lines.push(`## ${who} — ${new Date(m.timestamp).toLocaleString()}`, '', m.content, '')
+    }
+    await writeFile(filePath, lines.join('\n'), 'utf8')
+    return { ok: true, path: filePath }
   })
 
   // App

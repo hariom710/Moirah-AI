@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   MessageSquare, Trash2, Clock, ChevronRight, Search,
-  Bot, User, X
+  Bot, User, X, Download
 } from 'lucide-react'
 import type { Message, Conversation } from '../../../shared/types'
 
@@ -37,6 +37,14 @@ export default function History() {
     window.moirahAPI.clearConversations()
     setConversations([])
     setSelectedConversation(null)
+  }, [])
+
+  const handleExport = useCallback(async (id: string) => {
+    try {
+      await window.moirahAPI.exportConversation(id)
+    } catch (err) {
+      console.error('Export failed:', err)
+    }
   }, [])
 
   const filteredConversations = conversations.filter((c) => {
@@ -85,6 +93,15 @@ export default function History() {
               {new Date(selectedConversation.createdAt).toLocaleString()}
             </p>
           </div>
+          <button
+            onClick={() => handleExport(selectedConversation.id)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm bg-white/5
+                       text-white/50 hover:text-white/80 hover:bg-white/10 transition-colors"
+            title="Export as Markdown"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export
+          </button>
         </div>
 
         <div className="space-y-3">
@@ -207,6 +224,17 @@ export default function History() {
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleExport(conv.id)
+                    }}
+                    className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100
+                               hover:bg-white/10 text-white/20 hover:text-white/70 transition-all"
+                    title="Export as Markdown"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()

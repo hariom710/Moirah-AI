@@ -27,7 +27,7 @@ describe('detectOS', () => {
 
 describe('DOWNLOAD_URLS', () => {
   it('uses stable latest-download URLs with the new artifact names', () => {
-    const base = 'https://github.com/moirah-ai/moirah-ai/releases/latest/download/'
+    const base = 'https://github.com/hariom710/Moirah-AI/releases/latest/download/'
     expect(DOWNLOAD_URLS.windows.setup).toBe(`${base}moirah-setup.exe`)
     expect(DOWNLOAD_URLS.macos.arm64).toBe(`${base}moirah-mac-arm64.zip`)
     expect(DOWNLOAD_URLS.linux.appimage).toBe(`${base}moirah-linux-x64.AppImage`)

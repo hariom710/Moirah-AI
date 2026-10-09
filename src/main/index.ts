@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { createOverlayWindow, getOverlayWindow, showOverlay } from './overlay-window'
 import { createTray, destroyTray } from './tray'
 import { registerHotkeys, unregisterAllHotkeys } from './hotkey-manager'
+import { startMeetingGuard } from './meeting-guard'
 import { registerIpcHandlers } from './ipc-handlers'
 import { createOnboardingWindow, getOnboardingWindow } from './onboarding-window'
 import { initUpdater } from './updater'
@@ -70,10 +71,10 @@ app.whenReady().then(() => {
   // Register global hotkeys
   registerHotkeys(overlay)
 
-  // NOTE: Screen share detector was removed — it was incorrectly hiding the overlay
-  // whenever meeting apps (Zoom, Teams, Chrome) were simply running.
-  // The overlay is already invisible to screen capture via setContentProtection(true)
-  // on Windows and type:'panel' on macOS. No additional hiding is needed.
+  // Best-effort meeting auto-hide — opt-in via Settings ("Auto-hide in meetings").
+  // Polls the foreground window title; not true screen-share detection.
+  // See meeting-guard.ts for exact semantics.
+  startMeetingGuard()
 
   // Create system tray
   createTray()
@@ -91,7 +92,8 @@ app.whenReady().then(() => {
   const hasProviderConfig =
     !!getSetting<string>('openrouterApiKey') ||
     !!getSetting<string>('openaiApiKey') ||
-    getSetting<'openrouter' | 'openai' | 'codex'>('aiProvider') === 'codex'
+    !!getSetting<string>('geminiApiKey') ||
+    getSetting<'openrouter' | 'openai' | 'gemini' | 'codex'>('aiProvider') === 'codex'
   if (!onboarded && !hasProviderConfig) {
     overlay.hide()
     createOnboardingWindow()
