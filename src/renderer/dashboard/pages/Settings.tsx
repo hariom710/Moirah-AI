@@ -405,8 +405,7 @@ export default function Settings() {
                            text-white/90 focus:border-violet-500/40 focus:outline-none"
               >
                 <option value="gemini-2.5-flash">gemini-2.5-flash — fast, cheap, vision</option>
-                <option value="gemini-2.5-pro">gemini-2.5-pro — deep reasoning</option>
-                <option value="gemini-2.0-flash">gemini-2.0-flash — cheapest</option>
+                <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview — deep reasoning</option>
               </select>
               <p className="text-white/20 text-xs mt-1.5">
                 All Gemini models support screenshot vision. Free-tier keys have generous limits.

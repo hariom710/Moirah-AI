@@ -106,18 +106,11 @@ export const DEFAULT_GEMINI_MODELS = [
     description: 'Ultra-fast, cheap, great vision — ideal for real-time use'
   },
   {
-    id: 'gemini-2.5-pro',
-    name: 'Gemini 2.5 Pro (Deep Reasoning)',
+    id: 'gemini-3.1-pro-preview',
+    name: 'Gemini 3.1 Pro Preview (Deep Reasoning)',
     pricing: { prompt: '0.00000125', completion: '0.00001' },
     context_length: 1048576,
     description: 'Best for complex DSA, system design, and multi-step reasoning'
-  },
-  {
-    id: 'gemini-2.0-flash',
-    name: 'Gemini 2.0 Flash (Budget)',
-    pricing: { prompt: '0.0000001', completion: '0.0000004' },
-    context_length: 1048576,
-    description: 'Cheapest option, still fast with vision'
   }
 ]
 

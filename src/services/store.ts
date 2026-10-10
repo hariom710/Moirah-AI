@@ -140,6 +140,16 @@ function migrateSettings(s: Store<Record<string, unknown>>): void {
     s.set('systemPrompt', DEFAULT_SYSTEM_PROMPT)
     console.info('[Moirah] Migrated system prompt to new default')
   }
+
+  // 2. Gemini models retired by Google for new API keys — swap to current IDs
+  const geminiModel = s.get('geminiModel') as string | undefined
+  if (geminiModel === 'gemini-2.5-pro') {
+    s.set('geminiModel', 'gemini-3.1-pro-preview')
+    console.info('[Moirah] Migrated retired gemini-2.5-pro to gemini-3.1-pro-preview')
+  } else if (geminiModel === 'gemini-2.0-flash') {
+    s.set('geminiModel', 'gemini-2.5-flash')
+    console.info('[Moirah] Migrated retired gemini-2.0-flash to gemini-2.5-flash')
+  }
 }
 
 // --- electron-store setup ---

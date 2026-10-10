@@ -128,8 +128,7 @@ const OPENAI_MODEL_PRICING: Record<string, { prompt: string; completion: string 
 
 const GEMINI_MODEL_PRICING: Record<string, { prompt: string; completion: string }> = {
   'gemini-2.5-flash': { prompt: '0.0000003', completion: '0.0000025' },
-  'gemini-2.5-pro': { prompt: '0.00000125', completion: '0.00001' },
-  'gemini-2.0-flash': { prompt: '0.0000001', completion: '0.0000004' }
+  'gemini-3.1-pro-preview': { prompt: '0.00000125', completion: '0.00001' }
 }
 
 function isValidQuery(query: unknown): query is string {

@@ -33,11 +33,7 @@ const OPENROUTER_RECOMMENDED_MODELS = [
   'upstage/solar-pro-3:free'
 ]
 
-const GEMINI_RECOMMENDED_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.5-pro',
-  'gemini-2.0-flash'
-]
+const GEMINI_RECOMMENDED_MODELS = ['gemini-2.5-flash', 'gemini-3.1-pro-preview']
 
 const OPENAI_RECOMMENDED_MODELS = [
   'gpt-5.5',

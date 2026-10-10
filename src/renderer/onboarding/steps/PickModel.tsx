@@ -23,8 +23,7 @@ const CURATED: Record<ProviderId, Choice[]> = {
   ],
   gemini: [
     { id: 'gemini-2.5-flash', label: 'Fast', desc: 'Ultra-fast, cheap, great vision — ideal for real-time use', icon: Zap },
-    { id: 'gemini-2.5-pro', label: 'Deep reasoning', desc: 'Best for complex DSA and system design', icon: Scale },
-    { id: 'gemini-2.0-flash', label: 'Cheapest', desc: 'Lowest cost, still fast with vision', icon: Gift }
+    { id: 'gemini-3.1-pro-preview', label: 'Deep reasoning', desc: 'Best for complex DSA and system design', icon: Scale }
   ],
   openai: [
     { id: 'gpt-5.5', label: 'Fast', desc: 'Latest fast flagship model', icon: Zap },
