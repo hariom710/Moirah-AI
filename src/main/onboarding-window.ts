@@ -41,6 +41,13 @@ function registerOnboardingHandlers(): void {
   })
 }
 
+// Register eagerly at import time: this module is imported at app startup,
+// so the IPC contract holds even if a renderer (e.g. the overlay or the
+// dashboard) calls checkCodex()/completeOnboarding() before the wizard
+// window has ever been created. createOnboardingWindow() keeps its call
+// as a no-op safety net (guarded by handlersRegistered).
+registerOnboardingHandlers()
+
 export function createOnboardingWindow(): BrowserWindow {
   registerOnboardingHandlers()
 
