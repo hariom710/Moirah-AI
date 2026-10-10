@@ -758,8 +758,10 @@ export default function Settings() {
             <div className="pr-4">
               <label className="text-sm text-white/50">Auto-hide in Meetings</label>
               <p className="text-xs text-white/20 mt-0.5">
-                Hide the overlay while Zoom/Teams/Meet is in the foreground. Best-effort title
-                heuristic — not true screen-share detection; the Panic Hide hotkey always works.
+                Hides the overlay when a meeting app (Zoom/Teams/Meet) comes to the front. Best-effort
+                title heuristic — not true screen-share detection, and it can miss browser-based calls.
+                Once hidden it stays hidden until you re-show it (toggle hotkey or tray). Panic Hide
+                (Ctrl+Shift+H) always works.
               </p>
             </div>
             <button

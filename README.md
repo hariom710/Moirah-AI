@@ -10,7 +10,7 @@
 
 <p align="center">
   Open-source, privacy-first AI screen & meeting copilot with a dedicated interview mode.<br>
-  Invisible overlay powered by OpenRouter, OpenAI, Google Gemini, or your local Codex plan. Bring your own key.
+  Designed to be excluded from screen capture, powered by OpenRouter, OpenAI, Google Gemini, or your local Codex plan. Bring your own key.
 </p>
 
 <p align="center">
@@ -34,7 +34,7 @@
 
 ## What is Moirah AI?
 
-Moirah AI is a desktop application that overlays AI-powered assistance on your screen during meetings, interviews, and work sessions. The overlay is **invisible to screen-sharing software** (Zoom, Google Meet, Teams), so only you can see it.
+Moirah AI is a desktop application that overlays AI-powered assistance on your screen during meetings, interviews, and work sessions. The overlay is **designed to be excluded from screen capture** on supported Windows and macOS configurations, so in practice only you can see it — but behavior depends on the OS, your compositor, and the meeting software.
 
 - Reads your screen via OCR and transcribes meeting audio in real time
 - Sends context to your chosen AI provider — OpenRouter (500+ models), OpenAI, Google Gemini, or your local Codex plan
@@ -48,9 +48,9 @@ Think of it as a free, open-source, privacy-first alternative to Cluely.
 
 ## Features
 
-### Invisible Overlay
+### Capture-Excluded Overlay
 - Transparent, always-on-top window with glass morphism styling
-- Invisible to screen share on macOS (`type: 'panel'` + screen-saver level) and Windows (`setContentProtection`)
+- Excluded from screen capture on Windows (`WDA_EXCLUDEFROMCAPTURE`) and macOS (`type: 'panel'` + screen-saver level). Effectiveness depends on the OS, compositor, and meeting software — verify it yourself before relying on it
 - Draggable, collapsible to a small pill when not in use
 
 ### Screen Reading (OCR)
@@ -80,7 +80,7 @@ Think of it as a free, open-source, privacy-first alternative to Cluely.
 
 ### Safety & Privacy Controls
 - **Panic hide** (`Ctrl+Shift+H`): instantly hide the overlay at any moment
-- **Auto-hide in meetings** (opt-in): hides the overlay while Zoom/Teams/Meet is in the foreground — best-effort foreground-window-title heuristic, not true screen-share detection
+- **Auto-hide in meetings** (opt-in): hides the overlay when a meeting app (Zoom/Teams/Meet) moves to the foreground — best-effort foreground-window-title heuristic, not true screen-share detection. Once hidden it **stays hidden** until you re-show it or turn the setting off; it is never auto-restored just because the meeting window lost focus
 - Screen-capture exclusion: Windows `WDA_EXCLUDEFROMCAPTURE` FFI, macOS panel/screen-saver level
 
 ### Productivity
@@ -167,7 +167,7 @@ moirah-ai/
   src/
     main/                     Electron main process
       index.ts                App entry, window management
-      overlay-window.ts       Invisible overlay BrowserWindow
+      overlay-window.ts       Capture-excluded overlay BrowserWindow
       dashboard-window.ts     Settings dashboard window
       screen-capture.ts       Screenshot + OCR dispatch
       ocr-worker.ts           Tesseract OCR in worker thread
@@ -251,13 +251,13 @@ Browse all 500+ models at [openrouter.ai/models](https://openrouter.ai/models).
 ## Platform Notes
 
 ### macOS
-- Overlay is excluded from screen share via `setAlwaysOnTop(true, 'screen-saver')` + `type: 'panel'`
+- Overlay requests exclusion from screen share via `setAlwaysOnTop(true, 'screen-saver')` + `type: 'panel'`
 - Requires Screen Recording permission (System Settings > Privacy > Screen Recording)
 - Requires Microphone permission for audio transcription
 - Works on both Intel and Apple Silicon
 
 ### Windows
-- Overlay is excluded from screen share via `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)`
+- Overlay requests exclusion from screen share via `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)`
 - Moirah hides the overlay briefly when capturing so your own screenshots still include the rest of the screen
 - Packaged builds capture with Electron `desktopCapturer` (with `screenshot-desktop` as fallback)
 - No special permissions required
@@ -332,7 +332,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 - **Whisper transcription** supports Groq (fastest, recommended), OpenAI, and custom endpoints. Configure the provider and API key in Settings.
 - **Vision screenshots** require a vision-capable model (Gemini, Claude, Llama 4, GPT-4o, etc.). Text-only models still receive OCR text when it is available.
-- **Meeting auto-hide** is a best-effort heuristic: it polls the foreground window title every 2 seconds and matches known meeting apps (Zoom, Teams, Meet, Webex, …). It is **not** true screen-share detection and can miss or mis-trigger. The `Ctrl+Shift+H` panic-hide hotkey is the reliable escape hatch.
+- **Meeting auto-hide** is a best-effort heuristic: it polls the foreground window title every 2 seconds and matches known meeting apps (Zoom, Teams, Meet, Webex, …). It is **not** true screen-share detection and can miss or mis-trigger — on macOS it only sees the frontmost *application name*, so a Meet/Zoom call running inside a browser is not detected, and on Linux it is unsupported. Once it hides the overlay, the overlay **stays hidden** until you explicitly re-show it (toggle hotkey or tray) or disable the setting; it deliberately does not restore itself when the meeting loses focus, to avoid re-showing the overlay mid-share. Treat `Ctrl+Shift+H` (panic-hide) as the primary safety mechanism, not this feature.
 - **Linux screen share exclusion** is unreliable on Wayland compositors.
 
 ---

@@ -2,49 +2,41 @@
 //
 // IMPORTANT: This is NOT true screen-share detection. It polls the foreground
 // window title every 2 seconds and hides the overlay when a known meeting app
-// moves into the foreground (edge-triggered: once per meeting-focus entry).
-// It can miss shares from other apps and can mis-trigger on unrelated windows
-// whose title matches. The panic-hide hotkey remains the reliable escape hatch.
+// moves into the foreground. It can miss shares from unrecognized apps and can
+// match unrelated windows whose title matches. The panic-hide hotkey
+// (Ctrl+Shift+H) remains the reliable escape hatch.
 //
-// Behavior:
-//   - Meeting app gains focus while overlay is visible  -> overlay is hidden
-//     (and restored when the meeting app loses focus).
-//   - User re-shows the overlay during the meeting      -> honored; no fighting.
-//   - Setting toggled off while auto-hidden              -> overlay restored.
+// All decision logic lives in ../shared/meeting-guard-core.ts (pure + unit
+// tested). This file only wires it to Electron: the overlay window, the
+// stored setting, and foreground detection.
+//
+// Behavior (see nextGuardAction for the exact state machine):
+//   - Meeting app gains focus while overlay is visible -> overlay is hidden.
+//   - Meeting window loses focus                       -> overlay STAYS hidden.
+//     It is never auto-restored, because a momentary focus flicker while
+//     still sharing would otherwise pop the overlay back on screen. The user
+//     re-shows it explicitly (hotkey / tray) or by switching the setting off.
+//   - User re-shows the overlay during the meeting     -> honored; guard released.
+//   - Setting toggled off while auto-hidden            -> overlay restored.
 import { getSetting } from '../services/store'
 import { getOverlayWindow, hideOverlay, showOverlay } from './overlay-window'
 import { getForegroundWindowTitle } from './foreground'
+import {
+  INITIAL_GUARD_STATE,
+  MEETING_APP_NAME_PATTERNS,
+  MEETING_TITLE_PATTERNS,
+  isMeetingTitle,
+  nextGuardAction,
+  type GuardState
+} from '../shared/meeting-guard-core'
+
+export { isMeetingTitle, MEETING_APP_NAME_PATTERNS, MEETING_TITLE_PATTERNS }
 
 const POLL_INTERVAL_MS = 2000
 
-// Matched against the lowercased foreground window title / app name.
-// Best-effort list of dedicated meeting apps — deliberately excludes chat
-// apps (Slack, Discord) whose ordinary windows would false-positive.
-export const MEETING_TITLE_PATTERNS: RegExp[] = [
-  /zoom/, // Zoom Workplace / Zoom Meeting
-  /microsoft teams/, // Teams (work or school)
-  /^teams \|/, // legacy Teams title format
-  /\| teams$/, // Teams window suffix
-  /google meet/, // Meet tab/window title
-  /(^|\s)- meet -/, // Chrome/Edge tab title middle segment
-  /webex/, // Cisco Webex
-  /bluejeans/,
-  /gotomeeting/,
-  /go to webinar/,
-  /whereby/,
-  /jitsi/,
-  /skype/
-]
-
-export function isMeetingTitle(title: string): boolean {
-  const lower = title.toLowerCase()
-  return MEETING_TITLE_PATTERNS.some((re) => re.test(lower))
-}
-
 let timer: ReturnType<typeof setInterval> | null = null
 let ticking = false
-let prevMeeting = false
-let hiddenByGuard = false
+let state: GuardState = INITIAL_GUARD_STATE
 
 async function tick(): Promise<void> {
   if (ticking) return
@@ -53,32 +45,15 @@ async function tick(): Promise<void> {
     const win = getOverlayWindow()
     if (!win || win.isDestroyed()) return
 
-    const enabled = getSetting<boolean>('autoHideOnMeeting') === true
-    if (!enabled) {
-      // Feature turned off while we had it hidden — give it back.
-      if (hiddenByGuard && !win.isVisible()) showOverlay()
-      hiddenByGuard = false
-      prevMeeting = false
-      return
-    }
+    const outcome = nextGuardAction(state, {
+      enabled: getSetting<boolean>('autoHideOnMeeting') === true,
+      title: await getForegroundWindowTitle(),
+      overlayVisible: win.isVisible()
+    })
+    state = outcome.state
 
-    const title = await getForegroundWindowTitle()
-    if (title === null) return // detection unavailable (Linux / FFI failure)
-
-    const isMeeting = isMeetingTitle(title)
-
-    if (isMeeting && !prevMeeting) {
-      // Meeting app just gained focus — hide once.
-      if (win.isVisible()) {
-        hideOverlay()
-        hiddenByGuard = true
-      }
-    } else if (!isMeeting && prevMeeting) {
-      // Meeting app lost focus — restore only if we were the ones who hid it.
-      if (hiddenByGuard && !win.isVisible()) showOverlay()
-      hiddenByGuard = false
-    }
-    prevMeeting = isMeeting
+    if (outcome.action === 'hide') hideOverlay()
+    else if (outcome.action === 'restore') showOverlay()
   } catch (err) {
     console.warn('[Moirah] meeting-guard tick failed:', err instanceof Error ? err.message : err)
   } finally {
@@ -96,10 +71,9 @@ export function stopMeetingGuard(): void {
     clearInterval(timer)
     timer = null
   }
-  if (hiddenByGuard) {
-    const win = getOverlayWindow()
-    if (win && !win.isDestroyed() && !win.isVisible()) showOverlay()
-    hiddenByGuard = false
-  }
-  prevMeeting = false
+  // Deliberately no auto-restore here either: this is teardown, and popping a
+  // sensitive overlay back on screen as the guard shuts down is the exact
+  // exposure we are avoiding. The next startMeetingGuard() begins fresh.
+  state = INITIAL_GUARD_STATE
+  ticking = false
 }

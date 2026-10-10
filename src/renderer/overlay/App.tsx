@@ -516,10 +516,14 @@ export default function App() {
   /**
    * Quick follow-up actions — canned prompts sent as a normal message so the
    * full history is preserved. Disabled while streaming.
+   *
+   * We set both the state and the ref so the visible input and the query that
+   * is actually submitted can never diverge (doSubmit reads the ref).
    */
   const sendFollowUp = useCallback((text: string) => {
     if (isStreamingRef.current) return
     queryRef.current = text
+    setQuery(text)
     doSubmit(false)
   }, [doSubmit])
 
