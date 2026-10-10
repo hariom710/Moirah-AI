@@ -127,3 +127,51 @@ export function nextGuardAction(state: GuardState, input: GuardInput): GuardOutc
   // overlay hidden (sticky). Restore is never automatic here.
   return { action: 'none', state: { prevMeeting: isMeeting, hiddenByGuard: guardActive } }
 }
+
+/**
+ * Lifecycle token for async poll loops.
+ *
+ * A tick that `await`s foreground detection can still be in flight when the
+ * guard is stopped or restarted. The synchronous `ticking` re-entrancy flag
+ * cannot catch this: stopMeetingGuard() clears it while the tick is suspended
+ * on the await, so the resumed tick would happily apply a decision computed
+ * for a previous incarnation — potentially restoring an overlay the user just
+ * tore down.
+ *
+ * Tokens are handed out at start and invalidated at stop; a resumed tick
+ * compares its own token against the live one and drops itself if stale.
+ */
+export interface LifecycleGuard {
+  /** Begin a new incarnation; returns the token ticks must carry. */
+  start(): number
+  /** Invalidate every outstanding token. */
+  stop(): void
+  /** True only for a token belonging to the current incarnation. */
+  isCurrent(token: number): boolean
+  /** True only for a token belonging to an incarnation that has since ended. */
+  isStale(token: number): boolean
+}
+
+export function createLifecycleGuard(): LifecycleGuard {
+  let current = 0
+  let running = false
+  return {
+    start(): number {
+      // Monotonic so a token from a previous incarnation is NEVER reissued
+      // after a restart (reissue would let a stale tick validate against a
+      // new incarnation's token).
+      current += 1
+      running = true
+      return current
+    },
+    stop(): void {
+      running = false
+    },
+    isCurrent(token: number): boolean {
+      return running && token === current
+    },
+    isStale(token: number): boolean {
+      return !(running && token === current)
+    }
+  }
+}

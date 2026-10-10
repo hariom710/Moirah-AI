@@ -8,6 +8,7 @@ import { Send, Mic, MicOff, Monitor, Settings, GripVertical, Minimize2, Maximize
 import type { StreamDoneData } from '../../preload/index'
 import type { Message, Conversation } from '../../shared/types'
 import { extractLastQuestion } from '../../services/context-builder'
+import { isCurrentStreamEvent } from '../../shared/stream-guard'
 
 declare global {
   interface Window {
@@ -794,13 +795,13 @@ export default function App() {
 
     const unsubChunk = api.onStreamChunk((data) => {
       // Ignore chunks from a previous/cancelled request.
-      if (data.requestId !== activeRequestIdRef.current) return
+      if (!isCurrentStreamEvent(data.requestId, activeRequestIdRef.current)) return
       setStreamingContent((prev) => prev + data.chunk)
     })
 
     const unsubDone = api.onStreamDone((data: StreamDoneData) => {
       // Ignore completion of a previous/cancelled request.
-      if (data.requestId !== activeRequestIdRef.current) return
+      if (!isCurrentStreamEvent(data.requestId, activeRequestIdRef.current)) return
       pendingCostRef.current = data
       // Update selectedModel from the response if available
       if (data.model) setSelectedModel(data.model)
@@ -827,7 +828,7 @@ export default function App() {
 
     const unsubError = api.onStreamError((data) => {
       // Ignore errors from a previous/cancelled request.
-      if (data.requestId !== activeRequestIdRef.current) return
+      if (!isCurrentStreamEvent(data.requestId, activeRequestIdRef.current)) return
       const errMsg = data.error
       // Parse and show user-friendly error messages
       let displayError = errMsg

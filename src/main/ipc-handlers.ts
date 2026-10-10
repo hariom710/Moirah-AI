@@ -2,7 +2,8 @@
 import { ipcMain, BrowserWindow, app, shell, dialog } from 'electron'
 import { writeFile } from 'node:fs/promises'
 import { IPC_CHANNELS } from '../shared/ipc-channels'
-import { getSetting, setSetting, getAllSettings, getConversations, saveConversation, deleteConversation, clearConversations, isValidSetting } from '../services/store'
+import { toAudioBuffer } from '../shared/audio-payload'
+import { getSetting, setSetting, getAllSettings, getConversations, saveConversation, deleteConversation, clearConversations, isValidSetting, getAllowedSettingsKeys } from '../services/store'
 import { streamCompletion, cancelStream, fetchAvailableModels, estimateCost, getCachedModels, type ChatMessage } from '../services/openrouter'
 import { streamOpenAICompletion, cancelOpenAIStream } from '../services/openai-api'
 import { streamGeminiCompletion, cancelGeminiStream } from '../services/gemini-api'
@@ -524,17 +525,12 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
       throw new Error('Invalid MIME type')
     }
 
+    // Reject oversized/malformed payloads BEFORE allocating a Buffer.
+    // ~25MB of opus audio is roughly 25+ minutes of a single recording chunk,
+    // far above what the rolling recorder ever sends in one call.
+    const buffer = toAudioBuffer(audioData)
+
     try {
-      let buffer: Buffer
-      if (Buffer.isBuffer(audioData)) {
-        buffer = audioData
-      } else if (audioData instanceof ArrayBuffer) {
-        buffer = Buffer.from(audioData)
-      } else if (ArrayBuffer.isView(audioData)) {
-        buffer = Buffer.from(audioData.buffer, audioData.byteOffset, audioData.byteLength)
-      } else {
-        buffer = Buffer.from(audioData as ArrayBuffer)
-      }
       const text = await transcribeAudio(buffer, mimeType || 'audio/webm;codecs=opus')
       return text
     } catch (err: unknown) {
@@ -546,6 +542,13 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
   // Settings — with allowlist validation
   ipcMain.handle(IPC_CHANNELS.SETTINGS_GET, (_event, key: string) => {
     if (!isValidSettingsKey(key)) {
+      throw new Error('Invalid settings key')
+    }
+    // Read allowlist: only expose keys that have an explicit validator.
+    // Writes were already restricted this way (via isValidSetting); this
+    // closes the read side so the IPC surface can't probe arbitrary store
+    // keys. getAllSettings() is unaffected — it returns the full schema.
+    if (!getAllowedSettingsKeys().has(key)) {
       throw new Error('Invalid settings key')
     }
     return getSetting(key)

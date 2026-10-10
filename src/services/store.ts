@@ -2,6 +2,7 @@
 // API keys are encrypted via Electron safeStorage (OS keychain / DPAPI)
 import Store from 'electron-store'
 import { safeStorage } from 'electron'
+import { encryptSecret, decryptSecret } from '../shared/secret-storage-core'
 import { DEFAULT_SETTINGS, DEFAULT_SYSTEM_PROMPT } from '../shared/constants'
 import type { UserSettings, Conversation } from '../shared/types'
 
@@ -11,34 +12,18 @@ import type { UserSettings, Conversation } from '../shared/types'
 //   macOS → Keychain
 //   Windows → DPAPI (tied to user account)
 //   Linux → libsecret / gnome-keyring
+// The encrypt/decrypt logic lives in shared/secret-storage-core.ts (pure,
+// unit-tested). Encryption FAILS CLOSED: we throw rather than persist a key
+// in plaintext, because a silent downgrade would break the documented
+// "stored encrypted on your machine" guarantee.
 const SENSITIVE_KEYS = new Set(['openrouterApiKey', 'openaiApiKey', 'geminiApiKey', 'whisperApiKey'])
 
 function encryptSensitive(value: string): string {
-  if (!value) return ''
-  try {
-    if (safeStorage.isEncryptionAvailable()) {
-      const encrypted = safeStorage.encryptString(value)
-      return encrypted.toString('base64')
-    }
-  } catch (err) {
-    console.warn('[Moirah] safeStorage encryption unavailable, storing as-is:', err)
-  }
-  // Fallback: store raw (better than crashing; logs a warning)
-  return value
+  return encryptSecret(value, safeStorage)
 }
 
 function decryptSensitive(stored: string): string {
-  if (!stored) return ''
-  try {
-    if (safeStorage.isEncryptionAvailable()) {
-      const buffer = Buffer.from(stored, 'base64')
-      return safeStorage.decryptString(buffer)
-    }
-  } catch {
-    // If decryption fails, the value was likely stored unencrypted (pre-migration)
-    // Return as-is so the user doesn't lose their key
-  }
-  return stored
+  return decryptSecret(stored, safeStorage)
 }
 
 // --- Settings value validation ---

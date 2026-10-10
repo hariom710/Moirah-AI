@@ -2,6 +2,47 @@
 
 All notable changes to Moirah AI are documented in this file.
 
+## [1.6.1] - 2026-10-10
+
+Security and reliability hardening following an external code review. No
+intentional feature or UI changes; on Windows and macOS behavior is unchanged
+in normal use.
+
+### Fixed
+- **API keys are never persisted in plaintext** (review P1): encryption now
+  fails closed. If OS secure storage (`safeStorage`) is unavailable or throws,
+  saving a key returns a clear, actionable error instead of silently writing
+  the raw key to disk with only a console warning. Legacy plaintext keys
+  written by earlier builds still load unchanged (migration path preserved and
+  explicitly tested) — only *writes* are blocked. Empty values still
+  short-circuit so an unset key never blocks a save.
+- **Audio transcription payload validation** (review P2): `audio:transcribe`
+  rejects malformed payloads (strings, plain objects, empty buffers) with an
+  explicit error instead of coercing them through a loose cast into garbage
+  audio bytes, and enforces a documented 25 MB maximum payload size
+  (`MAX_AUDIO_PAYLOAD_BYTES`) before allocating a buffer. Normal recordings are
+  far below the cap (~1 MB/minute of opus), so working transcription is
+  unaffected.
+- **Settings read allowlist**: single-key `settings:get` now checks the same
+  validator-backed allowlist the write path already used, so the IPC surface
+  cannot probe arbitrary store keys. `settings:getAll` (which returns the full
+  schema by design) and all existing readers are unaffected.
+- **Stale meeting-guard ticks**: the auto-hide poll now carries a lifecycle
+  token. A tick suspended on foreground detection when the guard is stopped or
+  restarted discards its result instead of applying a decision from a previous
+  guard instance after teardown.
+
+### Added
+- **Regression tests for every fix** (151 tests total, up from 106): secret
+  storage fail-closed + legacy plaintext migration, audio payload type/size
+  validation, meeting-guard lifecycle token, and stale AI stream `requestId`
+  rejection. The stream predicate was extracted to
+  `shared/stream-guard.ts` so tests exercise the exact code the overlay
+  listeners run.
+- Note: streamed-response `requestId` isolation was already implemented in
+  1.6.0 (review P1 downgraded after source verification); it is now locked in
+  by tests.
+
 ## [1.6.0] - 2026-10-08
 
 First release as **Moirah AI** — a rebrand and feature release based on Specter-AI 1.5.0 (MIT, by Umair Inayat).

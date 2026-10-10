@@ -2,7 +2,7 @@
 
 export const APP_NAME = 'Moirah AI'
 export const APP_ID = 'com.moirah.ai'
-export const APP_VERSION = '1.6.0'
+export const APP_VERSION = '1.6.1'
 
 export const ACCENT_COLOR = '#7C3AED' // violet
 export const ACCENT_COLOR_RGB = '124, 58, 237'
