@@ -18,6 +18,9 @@ function applyHotkeys(): void {
   // Merge stored hotkeys over defaults so newly added hotkeys (e.g. panicHide)
   // work for existing installs whose stored object predates them.
   const hotkeys = { ...DEFAULT_HOTKEYS, ...(getSetting<typeof DEFAULT_HOTKEYS>('hotkeys') || {}) }
+  const panicHide = (typeof hotkeys.panicHide === 'string' && hotkeys.panicHide.trim().length > 0)
+    ? hotkeys.panicHide
+    : DEFAULT_HOTKEYS.panicHide
 
   // Ctrl/Cmd + Enter: Ask AI based on current context
   try {
@@ -68,7 +71,7 @@ function applyHotkeys(): void {
 
   // Ctrl/Cmd + Shift + H: Panic hide — instantly hide the overlay (screen-share safety)
   try {
-    globalShortcut.register(hotkeys.panicHide, () => {
+    globalShortcut.register(panicHide, () => {
       hideOverlay()
     })
   } catch (e) {

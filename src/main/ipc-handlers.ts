@@ -1,6 +1,7 @@
 // IPC handlers — bridge between main and renderer processes
 import { ipcMain, BrowserWindow, app, shell, dialog } from 'electron'
 import { writeFile } from 'node:fs/promises'
+import { extname } from 'node:path'
 import { IPC_CHANNELS } from '../shared/ipc-channels'
 import { getSetting, setSetting, getAllSettings, getConversations, saveConversation, deleteConversation, clearConversations, isValidSetting } from '../services/store'
 import { streamCompletion, cancelStream, fetchAvailableModels, estimateCost, getCachedModels, type ChatMessage } from '../services/openrouter'
@@ -623,7 +624,12 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
     const conv = getConversations().find((c) => c.id === id)
     if (!conv) throw new Error('Conversation not found')
 
-    const safeTitle = (conv.title || 'session').replace(/[<>:"/\\|?*\u0000-\u001f]+/g, '-').slice(0, 60).trim() || 'session'
+    const exportTitle = (typeof conv.title === 'string' && conv.title.trim()) ? conv.title.trim() : 'session'
+    const safeTitle = exportTitle
+      .replace(/[<>:"/\\|?*\u0000-\u001f]+/g, '-')
+      .slice(0, 60)
+      .trim() || 'session'
+
     const { canceled, filePath } = await dialog.showSaveDialog({
       title: 'Export conversation',
       defaultPath: `moirah-${safeTitle}.md`,
@@ -632,25 +638,36 @@ export function registerIpcHandlers(overlayWindow: BrowserWindow): void {
         { name: 'All Files', extensions: ['*'] }
       ]
     })
-    if (canceled || !filePath) return { ok: false, canceled: true }
+    if (canceled || !filePath || typeof filePath !== 'string') {
+      return { ok: false, canceled: true }
+    }
+    const trimmedPath = filePath.trim()
+    if (!trimmedPath) return { ok: false, canceled: true }
+    const exportPath = extname(trimmedPath).toLowerCase() === '.md'
+      ? trimmedPath
+      : `${trimmedPath}.md`
 
     const lines: string[] = [
-      `# ${conv.title}`,
+      `# ${exportTitle}`,
       '',
-      `- Model: ${conv.model}`,
-      `- Created: ${new Date(conv.createdAt).toLocaleString()}`,
+      `- Model: ${typeof conv.model === 'string' ? conv.model : 'unknown'}`,
+      `- Created: ${new Date(typeof conv.createdAt === 'number' ? conv.createdAt : Date.now()).toLocaleString()}`,
       `- Exported: ${new Date().toLocaleString()}`,
       '',
       '---',
       ''
     ]
-    for (const m of conv.messages) {
+    const messages = Array.isArray(conv.messages) ? conv.messages : []
+    for (const m of messages) {
+      if (!m || typeof m !== 'object') continue
       if (m.role === 'system') continue
       const who = m.role === 'user' ? 'You' : 'Moirah'
-      lines.push(`## ${who} — ${new Date(m.timestamp).toLocaleString()}`, '', m.content, '')
+      const stamp = typeof m.timestamp === 'number' ? m.timestamp : Date.now()
+      const content = typeof m.content === 'string' ? m.content : ''
+      lines.push(`## ${who} — ${new Date(stamp).toLocaleString()}`, '', content, '')
     }
-    await writeFile(filePath, lines.join('\n'), 'utf8')
-    return { ok: true, path: filePath }
+    await writeFile(exportPath, lines.join('\n'), 'utf8')
+    return { ok: true, canceled: false, path: exportPath }
   })
 
   // App

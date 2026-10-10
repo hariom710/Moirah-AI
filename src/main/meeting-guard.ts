@@ -7,10 +7,10 @@
 // whose title matches. The panic-hide hotkey remains the reliable escape hatch.
 //
 // Behavior:
-//   - Meeting app gains focus while overlay is visible  -> overlay is hidden
-//     (and restored when the meeting app loses focus).
+//   - Meeting app gains focus while overlay is visible  -> overlay is hidden.
 //   - User re-shows the overlay during the meeting      -> honored; no fighting.
-//   - Setting toggled off while auto-hidden              -> overlay restored.
+//   - Meeting focus transitions do NOT auto re-show     -> fail closed.
+//   - Setting toggled off while auto-hidden             -> overlay restored.
 import { getSetting } from '../services/store'
 import { getOverlayWindow, hideOverlay, showOverlay } from './overlay-window'
 import { getForegroundWindowTitle } from './foreground'
@@ -43,7 +43,7 @@ export function isMeetingTitle(title: string): boolean {
 
 let timer: ReturnType<typeof setInterval> | null = null
 let ticking = false
-let prevMeeting = false
+let prevMeeting: boolean | null = null
 let hiddenByGuard = false
 
 async function tick(): Promise<void> {
@@ -58,7 +58,7 @@ async function tick(): Promise<void> {
       // Feature turned off while we had it hidden — give it back.
       if (hiddenByGuard && !win.isVisible()) showOverlay()
       hiddenByGuard = false
-      prevMeeting = false
+      prevMeeting = null
       return
     }
 
@@ -67,15 +67,15 @@ async function tick(): Promise<void> {
 
     const isMeeting = isMeetingTitle(title)
 
-    if (isMeeting && !prevMeeting) {
+    if (isMeeting && prevMeeting !== true) {
       // Meeting app just gained focus — hide once.
       if (win.isVisible()) {
         hideOverlay()
         hiddenByGuard = true
       }
-    } else if (!isMeeting && prevMeeting) {
-      // Meeting app lost focus — restore only if we were the ones who hid it.
-      if (hiddenByGuard && !win.isVisible()) showOverlay()
+    } else if (!isMeeting && hiddenByGuard && win.isVisible()) {
+      // User manually re-showed the overlay outside meeting focus; stop tracking
+      // it as guard-hidden so we don't override future user intent.
       hiddenByGuard = false
     }
     prevMeeting = isMeeting
@@ -101,5 +101,5 @@ export function stopMeetingGuard(): void {
     if (win && !win.isDestroyed() && !win.isVisible()) showOverlay()
     hiddenByGuard = false
   }
-  prevMeeting = false
+  prevMeeting = null
 }

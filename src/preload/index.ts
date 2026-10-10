@@ -27,6 +27,10 @@ export interface AIQueryOptions {
   screenshot?: string
 }
 
+export type ConversationExportResult =
+  | { ok: true; canceled: false; path: string }
+  | { ok: false; canceled: true }
+
 export interface MoirahAPI {
   // AI
   queryAI: (query: string, includeScreen: boolean, includeAudio: boolean, messageHistory?: Array<{ role: string; content: string }>, options?: AIQueryOptions) => void
@@ -73,7 +77,7 @@ export interface MoirahAPI {
   deleteConversation: (id: string) => void
   clearConversations: () => void
   /** Export a conversation as Markdown — opens a save dialog. */
-  exportConversation: (id: string) => Promise<{ ok: boolean; canceled?: boolean; path?: string }>
+  exportConversation: (id: string) => Promise<ConversationExportResult>
 
   // App
   getVersion: () => Promise<string>
@@ -130,6 +134,13 @@ function isAudioStatus(v: unknown): v is { isRecording: boolean; duration: numbe
   if (typeof v !== 'object' || v === null) return false
   const s = v as Record<string, unknown>
   return typeof s.isRecording === 'boolean' && typeof s.duration === 'number'
+}
+
+function isConversationExportResult(v: unknown): v is ConversationExportResult {
+  if (typeof v !== 'object' || v === null) return false
+  const r = v as Record<string, unknown>
+  if (r.ok === false) return r.canceled === true
+  return r.ok === true && r.canceled === false && typeof r.path === 'string' && r.path.length > 0
 }
 
 const api: MoirahAPI = {
@@ -268,7 +279,16 @@ const api: MoirahAPI = {
     ipcRenderer.send(IPC_CHANNELS.CONVERSATIONS_DELETE, id)
   },
   clearConversations: () => ipcRenderer.send(IPC_CHANNELS.CONVERSATIONS_CLEAR),
-  exportConversation: (id) => ipcRenderer.invoke(IPC_CHANNELS.CONVERSATIONS_EXPORT, id),
+  exportConversation: async (id) => {
+    if (typeof id !== 'string' || id.length === 0) {
+      return { ok: false, canceled: true }
+    }
+    const result = await ipcRenderer.invoke(IPC_CHANNELS.CONVERSATIONS_EXPORT, id)
+    if (!isConversationExportResult(result)) {
+      throw new Error('Invalid export response from main process')
+    }
+    return result
+  },
 
   // App
   getVersion: () => ipcRenderer.invoke(IPC_CHANNELS.APP_VERSION),
